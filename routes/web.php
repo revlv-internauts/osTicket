@@ -22,9 +22,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/records', [App\Http\Controllers\RecordsController::class, 'index'])->name('records');
 
-    Route::get('ticket', function () {
-        return Inertia::render('ticket');
-    })->name('ticket');
+   
+    Route::get('ticket', [TicketController::class, 'index'])->name('ticket');
     
     Route::get('computation', function () {
         return Inertia::render('computation');
@@ -40,7 +39,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     Route::resource('tickets', TicketController::class);
 
-   Route::get('/tickets', [TicketController::class, 'index'])->name('tickets.index');
+    
     
 });
 

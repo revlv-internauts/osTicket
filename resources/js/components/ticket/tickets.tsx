@@ -10,6 +10,7 @@ import {
 
 
 
+
 // Define the Ticket type if not imported from elsewhere
 type Ticket = {
     id: number;
@@ -28,6 +29,8 @@ type Ticket = {
     createdAt: string;
     updatedAt: string;
 };
+
+
 
 const TicketsTable: React.FC<{ tickets: Ticket[] }> = ({ tickets }) => (
     <div className="border rounded-md">

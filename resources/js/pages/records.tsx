@@ -25,7 +25,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-// Define ticket interface
+
 interface Ticket {
     id: number;
     ticket_name: string;
@@ -68,7 +68,6 @@ export default function Records({ tickets }: RecordsProps) {
         if (!ticket) return false;
         
         const searchLower = searchTerm.toLowerCase();
-        
         return (
             (ticket.ticket_name && ticket.ticket_name.toLowerCase().includes(searchLower)) ||
             (ticket.help_topic && ticket.help_topic.toLowerCase().includes(searchLower)) ||
@@ -77,6 +76,7 @@ export default function Records({ tickets }: RecordsProps) {
             (ticket.ticket_source && ticket.ticket_source.toLowerCase().includes(searchLower)) ||
             (ticket.id && ticket.id.toString().includes(searchLower))
         );
+
     });
 
     return (

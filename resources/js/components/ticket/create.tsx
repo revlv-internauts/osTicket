@@ -26,6 +26,7 @@ import { toast } from "sonner"
 
 type Ticket = {
     user_id: number;
+    ticket_id?: string | null;
     cc?: string | null;
     ticket_notice?: string | null;
     ticket_source: string;
@@ -85,7 +86,6 @@ const TicketCreate: React.FC<Props> = ({
     const [date, setDate] = useState<Date | undefined>(undefined);
     const [formErrors, setFormErrors] = useState<{[key: string]: boolean}>({});
 
-    // Update user_id when auth user changes
     useEffect(() => {
         if (user?.id) {
             setData("user_id", user.id);
@@ -110,8 +110,7 @@ const TicketCreate: React.FC<Props> = ({
 
     const validateForm = () => {
         const newErrors: {[key: string]: boolean} = {};
-        
-        // Required fields
+
         if (!data.ticket_source) newErrors.ticket_source = true;
         if (!data.help_topic) newErrors.help_topic = true;
         if (!data.department) newErrors.department = true;
@@ -124,7 +123,6 @@ const TicketCreate: React.FC<Props> = ({
         e.preventDefault();
         
         if (!validateForm()) {
-            
             return;
         }
 
@@ -133,17 +131,19 @@ const TicketCreate: React.FC<Props> = ({
                 reset();
                 setDate(undefined);
                 
-              
                 if (onSuccess) {
                     onSuccess();
-                }
-                
-                else if (redirectUrl) {
+                } else if (redirectUrl) {
                     window.location.href = redirectUrl;
                 }
             },
-            onError: (errors) => {
-                console.error(errors);
+            onError: (errs) => {
+                console.error(errs);
+                if (errs && typeof errs === 'object') {
+                    Object.values(errs).forEach((m: any) => {
+                        if (m) toast.error(String(m));
+                    });
+                }
             }
         });
     };
@@ -221,7 +221,7 @@ const TicketCreate: React.FC<Props> = ({
                                 value={data.ticket_notice || ""} 
                                 onChange={handleChange}
                                 placeholder="Notification message" 
-                                maxLength={50} // Match VARCHAR(50) in schema
+                                maxLength={50} 
                                 className={errors.ticket_notice ? "border-red-500" : ""}
                             />
                             {errors.ticket_notice && (
