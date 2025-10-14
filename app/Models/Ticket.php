@@ -24,7 +24,9 @@ class Ticket extends Model
         'due_date',
         'canned_response',
         'response',
-        'status'
+        'status',
+        'assigned_to',
+        'assigned_to_user_id'
     ];
 
     /**
@@ -51,6 +53,6 @@ class Ticket extends Model
      */
     public function assignedTo()
     {
-        return $this->belongsTo(User::class, 'assigned_to');
+        return $this->belongsTo(User::class, 'assigned_to_user_id');
     }
 }

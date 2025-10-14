@@ -13,7 +13,6 @@ const mainNavItems: NavItem[] = [
     
     { title: "Dashboard", href: "/dashboard", icon: Home }, 
     { title: "Ticket", href: "/ticket", icon: Ticket },
-    { title: "Records", href: "/records", icon: Receipt },
     { title: "Users", href: "/users", icon: User },
     { title: "Computation", href: "/computation", icon: Clock },
 

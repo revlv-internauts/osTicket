@@ -59,10 +59,9 @@ export default function Index(props: TicketProps) {
    
     const { tickets: propTickets, myTickets: propMyTickets } = props || {};
     const pageProps = usePage().props as any;
-const tickets = propTickets ?? (pageProps.tickets ?? []);
-const myTickets = propMyTickets ?? (pageProps.myTickets ?? []);
+    const tickets = propTickets ?? (pageProps.tickets ?? []);
+    const myTickets = propMyTickets ?? (pageProps.myTickets ?? []);
 
-// show toast notification when backend sets a success flash message
 useEffect(() => {
     const success = pageProps?.flash?.success ?? pageProps?.flash?.message;
     if (success) {
@@ -70,6 +69,7 @@ useEffect(() => {
     }
 }, [pageProps?.flash?.success, pageProps?.flash?.message]);
  
+
     const [activeTab, setActiveTab] = useState("tickets");
     const tabsRef = useRef<HTMLDivElement>(null);
 
@@ -110,6 +110,7 @@ useEffect(() => {
                                                 <TableHead>Ticket Name</TableHead>
                                                 <TableHead>User ID</TableHead>
                                                 <TableHead>Source</TableHead>
+                                                <TableHead>Assigned To</TableHead>
                                                 <TableHead>Help Topic</TableHead>
                                                 <TableHead>Department</TableHead>
                                                 <TableHead>Status</TableHead>
@@ -122,18 +123,18 @@ useEffect(() => {
                                                 tickets.map((ticket) => (
                                                     <TableRow key={ticket.id}>
                                                         <TableCell className="font-medium">{ticket.id}</TableCell>
-                                                        <TableCell className="font-semibold text-blue-600">
+                                                        <TableCell>
                                                             {ticket.ticket_name || '-'}
                                                         </TableCell>
                                                         <TableCell>{ticket.user_id}</TableCell>
                                                         <TableCell>{ticket.ticket_source || '-'}</TableCell>
+                                                        <TableCell>{ticket.assigned_to || '-'}</TableCell>
                                                         <TableCell>{ticket.help_topic || '-'}</TableCell>
                                                         <TableCell>{ticket.department || '-'}</TableCell>
                                                         <TableCell>
                                                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                                                                 ticket.status === 'Open' ? 'bg-green-100 text-green-800' :
                                                                 ticket.status === 'Closed' ? 'bg-gray-100 text-gray-800' :
-                                                                ticket.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
                                                                 'bg-blue-100 text-blue-800'
                                                             }`}>
                                                                 {ticket.status || 'Unknown'}
@@ -177,7 +178,7 @@ useEffect(() => {
                                                 myTickets.map((ticket) => (
                                                     <TableRow key={ticket.id}>
                                                         <TableCell className="font-medium">{ticket.id}</TableCell>
-                                                        <TableCell className="font-semibold text-blue-600">
+                                                        <TableCell>
                                                             {ticket.ticket_name || '-'}
                                                         </TableCell>
                                                         <TableCell>{ticket.ticket_source || '-'}</TableCell>

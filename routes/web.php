@@ -20,8 +20,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('list');
     })->name('list');
 
-    Route::get('/records', [App\Http\Controllers\RecordsController::class, 'index'])->name('records');
-
    
     Route::get('ticket', [TicketController::class, 'index'])->name('ticket');
     

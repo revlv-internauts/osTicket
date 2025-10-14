@@ -12,8 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tickets', function (Blueprint $table) {
+            
             $table->unsignedBigInteger('assigned_to')->nullable()->after('due_date');
-            $table->foreign('assigned_to')->references('id')->on('users');
+            $table->foreign('assigned_to')->references('id')->on('users')->onDelete('set null');
         });
     }
 
@@ -23,8 +24,10 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('tickets', function (Blueprint $table) {
-            $table->dropForeign(['assigned_to']);
-            $table->dropColumn('assigned_to');
+            if (Schema::hasColumn('tickets', 'assigned_to')) {
+                $table->dropForeign(['assigned_to']);
+                $table->dropColumn('assigned_to');
+            }
         });
     }
 };

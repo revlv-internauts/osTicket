@@ -24,6 +24,7 @@ import { usePage, useForm } from "@inertiajs/react";
 import { toast } from "sonner"
 
 
+
 type Ticket = {
     user_id: number;
     ticket_id?: string | null;
@@ -37,6 +38,7 @@ type Ticket = {
     canned_response?: string | null;
     response?: string | null;
     status?: string | null;
+    assigned_to?: string | null;
 };
 
 type Props = {
@@ -53,7 +55,7 @@ type Props = {
 const defaultSourceOptions = ["Email", "Phone"];
 const defaultHelpTopicOptions = ["ADB Concern", "DICT-PIALEOS Concern", "R4B-PRVNET-MIMAROPA"];
 const defaultDepartmentOptions = ["NOC"];
-const defaultSlaOptions = ["Normal", "High"];
+const defaultSlaOptions = ["ADB SLA (18 hours - Active)", "Default SLA (18 hours - Active)", "DICT-MIMAROPA-PRVNET (18 hours - Active)", "PIALEOS 3     SLA (18 hours - Active)"];
 
 
 const TicketCreate: React.FC<Props> = ({ 
@@ -64,10 +66,9 @@ const TicketCreate: React.FC<Props> = ({
     redirectUrl = "/tickets",
     onSuccess
 }) => {
-    
-    const { auth } = usePage().props as any;
+
+    const { auth, users = [] } = usePage().props as any;
     const user = auth?.user;
-    
     
     const { data, setData, post, processing, errors, reset } = useForm<Ticket>({
         user_id: user?.id || 0,
@@ -81,6 +82,8 @@ const TicketCreate: React.FC<Props> = ({
         canned_response: null,
         response: null,
         status: "Open", 
+        assigned_to: null,
+            
     });
 
     const [date, setDate] = useState<Date | undefined>(undefined);
@@ -110,7 +113,13 @@ const TicketCreate: React.FC<Props> = ({
 
     const validateForm = () => {
         const newErrors: {[key: string]: boolean} = {};
-
+        if (!data.cc) newErrors.cc = true;
+        if (!data.ticket_notice) newErrors.ticket_notice = true;
+        if (!data.sla_plan) newErrors.sla_plan = true;
+        if (!data.due_date) newErrors.due_date = true;
+        if (!data.canned_response) newErrors.canned_response = true;
+        if (!data.response) newErrors.response = true;
+        if (!data.status) newErrors.status = true
         if (!data.ticket_source) newErrors.ticket_source = true;
         if (!data.help_topic) newErrors.help_topic = true;
         if (!data.department) newErrors.department = true;
@@ -173,7 +182,7 @@ const TicketCreate: React.FC<Props> = ({
 
                         {/* CC */}
                         <div className="space-y-2">
-                            <Label htmlFor="cc">CC</Label>
+                            <Label htmlFor="cc" className={formErrors.cc ? "text-red-500" : ""}>CC</Label>
                             <Input 
                                 id="cc" 
                                 name="cc" 
@@ -213,7 +222,7 @@ const TicketCreate: React.FC<Props> = ({
 
                         {/* Ticket Notice */}
                         <div className="space-y-2">
-                            <Label htmlFor="ticket_notice">Ticket Notice</Label>
+                            <Label htmlFor="ticket_notice" className={formErrors.ticket_notice ? "text-red-500" : ""}>Ticket Notice</Label>
                             <Input 
                                 id="ticket_notice" 
                                 name="ticket_notice" 
@@ -238,9 +247,7 @@ const TicketCreate: React.FC<Props> = ({
                                 value={data.help_topic} 
                                 onValueChange={(value) => handleSelectChange("help_topic", value)}
                             >
-                                <SelectTrigger className={formErrors.help_topic ? "border-red-500" : ""}>
-                                    <SelectValue placeholder="Select help topic" />
-                                </SelectTrigger>
+                                
                                 <SelectContent>
                                     {helpTopicOptions.map(topic => (
                                         <SelectItem key={topic} value={topic}>{topic}</SelectItem>
@@ -277,7 +284,7 @@ const TicketCreate: React.FC<Props> = ({
                         
                         {/* SLA Plan */}
                         <div className="space-y-2">
-                            <Label htmlFor="sla_plan">SLA Plan</Label>
+                            <Label htmlFor="sla_plan" className={formErrors.sla_plan ? "text-red-500" : ""}>SLA Plan</Label>
                             <Select 
                                 value={data.sla_plan || ""} 
                                 onValueChange={(value) => handleSelectChange("sla_plan", value)}
@@ -298,7 +305,7 @@ const TicketCreate: React.FC<Props> = ({
                         
                         {/* Due Date */}
                         <div className="space-y-2">
-                            <Label htmlFor="due_date">Due Date</Label>
+                            <Label htmlFor="due_date" className={formErrors.due_date ? "text-red-500" : ""}>Due Date</Label>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
@@ -329,7 +336,7 @@ const TicketCreate: React.FC<Props> = ({
                         
                         {/* Canned Response */}
                         <div className="space-y-2">
-                            <Label htmlFor="canned_response">Canned Response</Label>
+                            <Label htmlFor="canned_response" className={formErrors.canned_response ? "text-red-500" : ""}>Canned Response</Label>
                             <Select 
                                 value={data.canned_response || ""} 
                                 onValueChange={(value) => handleSelectChange("canned_response", value)}
@@ -349,7 +356,7 @@ const TicketCreate: React.FC<Props> = ({
 
                             {/* status */}
                         <div className="space-y-2 ">
-                            <Label htmlFor="status" className="text-lg">Status</Label>
+                            <Label htmlFor="status" className={`text-lg ${formErrors.status ? "text-red-500" : ""}`}>Status</Label>
                             <Select 
                                 value={data.status || ""} 
                                 onValueChange={(value) => handleSelectChange("status", value)}
@@ -366,13 +373,37 @@ const TicketCreate: React.FC<Props> = ({
                                 <p className="text-xs text-red-500">{errors.status}</p>
                             )}
                         </div>
-
+                    </div>
+                    
+                    <div>
+                            {/* user */}
+                        <div className="space-y-2 ">
+                            <Label htmlFor="assigned_to" className="text-lg">Assigned To</Label>
+                            <Select 
+                                value={data.assigned_to || ""} 
+                                onValueChange={(value) => handleSelectChange("assigned_to", value)}
+                            >
+                                <SelectTrigger className={errors.assigned_to ? "border-red-500" : ""}>
+                                    <SelectValue placeholder="Select user" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {users.map((user: any) => (
+                                        <SelectItem key={user.id} value={String(user.id)}>
+                                            {user.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.assigned_to && (
+                                <p className="text-xs text-red-500">{errors.assigned_to}</p>
+                            )}
+                        </div>
                     </div>
 
                     
                     {/* Response - Full width */}
                     <div className="space-y-2">
-                        <Label htmlFor="response">Response</Label>
+                        <Label htmlFor="response" className={formErrors.response ? "text-red-500" : ""}>Response</Label>
                         <Textarea 
                             id="response" 
                             name="response" 
