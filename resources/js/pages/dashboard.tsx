@@ -30,9 +30,9 @@ export default function Dashboard() {
 
                 <div className="grid auto-rows-min gap-4 md:grid-cols-3">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:col-span-4">
-                        <StatsCard title="Total Tickets" value={String(total)} />
-                        <StatsCard title="Opened" value={String(opened)} />
-                        <StatsCard title="Closed" value={String(closed)} />
+                        <StatsCard title="Total Tickets" value={total} />
+                        <StatsCard title="Opened" value={opened} />
+                        <StatsCard title="Closed" value={closed} />
                     </div>
                     
                 </div>

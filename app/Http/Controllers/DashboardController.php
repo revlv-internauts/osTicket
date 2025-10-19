@@ -18,10 +18,10 @@ class DashboardController extends Controller
         $open = Ticket::where('status', 'Open')->count();
         $closed = Ticket::where('status', 'Closed')->count();
 
-        // Get ticket data for chart (last 90 days) - count tickets created per day by status
-        $startDate = now()->subDays(90)->startOfDay();
+       
+        $startDate = now()->subDays(value: 90)->startOfDay();
         
-        $chartData = Ticket::where('created_at', '>=', $startDate)
+        $chartData = Ticket::where(column: 'created_at', operator: '>=', value: $startDate)
             ->orderBy('created_at')
             ->get()
             ->groupBy(function($ticket) {
@@ -37,22 +37,12 @@ class DashboardController extends Controller
             ->values()
             ->toArray();
 
-        // Get help topic statistics
         $helpTopicStats = Ticket::select('help_topic')
-            ->selectRaw("COUNT(CASE WHEN status = 'Open' THEN 1 END) as opened")
-            ->selectRaw("COUNT(CASE WHEN status = 'Closed' THEN 1 END) as closed")
-            ->selectRaw("COUNT(*) as total")
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw("SUM(CASE WHEN status = 'Open' THEN 1 ELSE 0 END) as opened")
+            ->selectRaw("SUM(CASE WHEN status = 'Closed' THEN 1 ELSE 0 END) as closed")
             ->groupBy('help_topic')
-            ->orderBy('total', 'desc')
             ->get()
-            ->map(function($item) {
-                return [
-                    'help_topic' => $item->help_topic ?? 'Unassigned',
-                    'opened' => (int) $item->opened,
-                    'closed' => (int) $item->closed,
-                    'total' => (int) $item->total,
-                ];
-            })
             ->toArray();
 
         return Inertia::render('dashboard', [
