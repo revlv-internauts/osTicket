@@ -36,75 +36,19 @@ export type HelpTopicStat = {
 export const columns: ColumnDef<HelpTopicStat>[] = [
   {
     accessorKey: "help_topic",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Department
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-    cell: ({ row }) => (
-      <div className="font-medium">{row.getValue("help_topic")}</div>
-    ),
+    header: () => "Department",
   },
   {
     accessorKey: "opened",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Opened
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-    cell: ({ row }) => (
-      <Badge variant="default" className="">
-        {row.getValue("opened")}
-      </Badge>
-    ),
+    header: () => "Opened",
   },
   {
     accessorKey: "closed",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Closed
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-    cell: ({ row }) => (
-      <Badge variant="default" className="">
-        {row.getValue("closed")}
-      </Badge>
-    ),
+    header: () => "Closed",
   },
   {
     accessorKey: "total",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Total
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-    cell: ({ row }) => (
-      <div className="font-semibold">{row.getValue("total")}</div>
-    ),
+    header: () => "Total",
   },
 ]
 
