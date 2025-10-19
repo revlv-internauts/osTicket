@@ -244,10 +244,12 @@ const TicketCreate: React.FC<Props> = ({
                                 Help Topic*
                             </Label>
                             <Select 
-                                value={data.help_topic} 
+                                value={data.help_topic}         
                                 onValueChange={(value) => handleSelectChange("help_topic", value)}
                             >
-                                
+                                <SelectTrigger className={formErrors.help_topic ? "border-red-500" : ""}>
+                                    <SelectValue placeholder="Select help topic" />
+                                </SelectTrigger>
                                 <SelectContent>
                                     {helpTopicOptions.map(topic => (
                                         <SelectItem key={topic} value={topic}>{topic}</SelectItem>

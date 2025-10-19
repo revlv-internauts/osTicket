@@ -1,9 +1,11 @@
 <?php
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Models\User;
 use App\Http\Controllers\TicketController;
+use SebastianBergmann\CodeCoverage\Report\Html\Dashboard;
 
 
 Route::get('/', function () {
@@ -12,9 +14,7 @@ Route::get('/', function () {
 
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
     Route::get('list', function () {
         return Inertia::render('list');
@@ -22,6 +22,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
    
     Route::get('ticket', [TicketController::class, 'index'])->name('ticket');
+
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
     Route::get('computation', function () {
         return Inertia::render('computation');
@@ -36,7 +38,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     
     Route::resource('tickets', TicketController::class);
-
+    
+    
     
     
 });
