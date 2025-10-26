@@ -1,6 +1,8 @@
 <?php
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\EmailController;
+use App\Http\Controllers\HelpTopicController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Models\User;
@@ -39,6 +41,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     Route::resource('tickets', TicketController::class);
     
+    // Email routes for CC
+    Route::resource('emails', EmailController::class);
+    
+    // Help Topic routes
+    Route::resource('help-topics', HelpTopicController::class);
     
     
     

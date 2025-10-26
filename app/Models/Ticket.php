@@ -12,21 +12,18 @@ class Ticket extends Model
      * @var array
      */
     protected $fillable = [
-        'ticket_id',
-        'user_id',
         'ticket_name',
+        'user_id',
         'cc',
-        'ticket_notice',
         'ticket_source',
         'help_topic',
         'department',
         'sla_plan',
-        'due_date',
-        'canned_response',
+        'opened_at',
+        'assigned_to',
         'response',
         'status',
-        'assigned_to',
-        'assigned_to_user_id'
+        'priority',
     ];
 
     /**
@@ -35,7 +32,7 @@ class Ticket extends Model
      * @var array
      */
     protected $casts = [
-        'due_date' => 'datetime',
+        'opened_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -49,10 +46,26 @@ class Ticket extends Model
     }
 
     /**
+     * Get the CC'd email.
+     */
+    public function ccEmail()
+    {
+        return $this->belongsTo(Email::class, 'cc');
+    }
+
+    /**
+     * Get the help topic.
+     */
+    public function helpTopicRelation()
+    {
+        return $this->belongsTo(HelpTopic::class, 'help_topic');
+    }
+
+    /**
      * Get the assigned user.
      */
-    public function assignedTo()
+    public function assignedToUser()
     {
-        return $this->belongsTo(User::class, 'assigned_to_user_id');
+        return $this->belongsTo(User::class, 'assigned_to');
     }
 }

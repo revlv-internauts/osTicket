@@ -16,18 +16,18 @@ class CreateTicketsTable extends Migration
     {
         Schema::create('tickets', function (Blueprint $table) {
             $table->id();
+            $table->string('ticket_name')->nullable();
             $table->foreignId('user_id')->constrained();
-            $table->text('cc')->nullable();
-            $table->string('ticket_notice', 50)->nullable();
+            $table->foreignId('cc')->nullable()->constrained('emails');
             $table->string('ticket_source', 50);
-            $table->string('help_topic', 100);
+            $table->foreignId('help_topic')->constrained('help_topics');
             $table->string('department', 100);
             $table->string('sla_plan', 100)->nullable();
-            $table->timestamp('due_date')->nullable();
+            $table->timestamp('opened_at')->nullable();
             $table->foreignId('assigned_to')->nullable()->constrained('users');
-            $table->string('canned_response', 255)->nullable();
             $table->text('response')->nullable();
             $table->string('status', 50)->nullable();
+            $table->string('priority', 50)->nullable();
             $table->timestamps();
         });
     }
@@ -35,7 +35,7 @@ class CreateTicketsTable extends Migration
     /**
      * Reverse the migrations.
      *
-     * @return void
+     * @return void     
      */
     public function down()
     {

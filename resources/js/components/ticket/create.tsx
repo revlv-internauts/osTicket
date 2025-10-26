@@ -11,79 +11,96 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { CalendarIcon, UserIcon } from "lucide-react";
+import { CalendarIcon, UserIcon, Plus } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { usePage, useForm } from "@inertiajs/react";
+import { usePage, useForm, router } from "@inertiajs/react";
 import { toast } from "sonner"
 
-
-
 type Ticket = {
+    ticket_name: string;
     user_id: number;
-    ticket_id?: string | null;
-    cc?: string | null;
-    ticket_notice?: string | null;
+    cc?: number | null;
     ticket_source: string;
-    help_topic: string;
+    help_topic: number;
     department: string;
     sla_plan?: string | null;
-    due_date?: string | null;
-    canned_response?: string | null;
+    opened_at?: string | null;
+    assigned_to?: number | null;
     response?: string | null;
     status?: string | null;
-    assigned_to?: string | null;
+    priority?: string | null;
 };
 
 type Props = {
     sourceOptions?: string[];
-    helpTopicOptions?: string[];
     departmentOptions?: string[];
     slaOptions?: string[];
     statusOptions?: string[];
+    priorityOptions?: string[];
     redirectUrl?: string | null; 
     onSuccess?: () => void; 
 };
 
-
 const defaultSourceOptions = ["Email", "Phone"];
-const defaultHelpTopicOptions = ["ADB Concern", "DICT-PIALEOS Concern", "R4B-PRVNET-MIMAROPA"];
 const defaultDepartmentOptions = ["NOC"];
-const defaultSlaOptions = ["ADB SLA (18 hours - Active)", "Default SLA (18 hours - Active)", "DICT-MIMAROPA-PRVNET (18 hours - Active)", "PIALEOS 3     SLA (18 hours - Active)"];
-
+const defaultSlaOptions = ["ADB SLA (18 hours - Active)", "Default SLA (18 hours - Active)", "DICT-MIMAROPA-PRVNET (18 hours - Active)", "PIALEOS 3 SLA (18 hours - Active)"];
+const defaultPriorityOptions = ["Low", "Medium", "High", "Critical"];
 
 const TicketCreate: React.FC<Props> = ({ 
     sourceOptions = defaultSourceOptions,
-    helpTopicOptions = defaultHelpTopicOptions,
     departmentOptions = defaultDepartmentOptions,
     slaOptions = defaultSlaOptions,
+    priorityOptions = defaultPriorityOptions,
     redirectUrl = "/tickets",
     onSuccess
 }) => {
 
-    const { auth, users = [] } = usePage().props as any;
+    const { auth, users = [], emails = [], helpTopics = [] } = usePage().props as any;
     const user = auth?.user;
     
     const { data, setData, post, processing, errors, reset } = useForm<Ticket>({
+        ticket_name: "",
         user_id: user?.id || 0,
-        ticket_source: "",
-        help_topic: "",
-        department: "",
         cc: null,
-        ticket_notice: null,
+        ticket_source: "",
+        help_topic: 0,
+        department: "",
         sla_plan: null,
-        due_date: null,
-        canned_response: null,
-        response: null,
-        status: "Open", 
+        opened_at: null,
         assigned_to: null,
-            
+        response: null,
+        status: "Open",
+        priority: null,
+    });
+
+  
+    const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+    const [helpTopicDialogOpen, setHelpTopicDialogOpen] = useState(false);
+
+   
+    const emailForm = useForm({
+        email_address: "",
+        name: "",
+    });
+
+    const helpTopicForm = useForm({
+        name: "",
     });
 
     const [date, setDate] = useState<Date | undefined>(undefined);
@@ -102,30 +119,65 @@ const TicketCreate: React.FC<Props> = ({
         setData(name as keyof Ticket, value);
     };
 
-    const handleSelectChange = (name: keyof Ticket, value: string) => {
-        setData(name, value);
+    const handleSelectChange = (name: keyof Ticket, value: string | number) => {
+        setData(name, value as any);
     };
 
     const handleDateChange = (date: Date | undefined) => {
         setDate(date);
-        setData("due_date", date ? format(date, "yyyy-MM-dd'T'HH:mm:ss") : null);
+        setData("opened_at", date ? format(date, "yyyy-MM-dd'T'HH:mm:ss") : null);
     };
 
     const validateForm = () => {
         const newErrors: {[key: string]: boolean} = {};
-        if (!data.cc) newErrors.cc = true;
-        if (!data.ticket_notice) newErrors.ticket_notice = true;
-        if (!data.sla_plan) newErrors.sla_plan = true;
-        if (!data.due_date) newErrors.due_date = true;
-        if (!data.canned_response) newErrors.canned_response = true;
-        if (!data.response) newErrors.response = true;
-        if (!data.status) newErrors.status = true
         if (!data.ticket_source) newErrors.ticket_source = true;
         if (!data.help_topic) newErrors.help_topic = true;
         if (!data.department) newErrors.department = true;
         
         setFormErrors(newErrors);
         return Object.keys(newErrors).length === 0;
+    };
+
+    const handleAddEmail = (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        emailForm.post("/emails", {
+            onSuccess: () => {
+                emailForm.reset();
+                setEmailDialogOpen(false);
+                toast.success("Email added successfully");
+                router.reload({ only: ['emails'] });
+            },
+            onError: (errs) => {
+                console.error(errs);
+                if (errs && typeof errs === 'object') {
+                    Object.values(errs).forEach((m: any) => {
+                        if (m) toast.error(String(m));
+                    });
+                }
+            }
+        });
+    };
+
+    const handleAddHelpTopic = (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        helpTopicForm.post("/help-topics", {
+            onSuccess: () => {
+                helpTopicForm.reset();
+                setHelpTopicDialogOpen(false);
+                toast.success("Help Topic added successfully");
+                router.reload({ only: ['helpTopics'] });
+            },
+            onError: (errs) => {
+                console.error(errs);
+                if (errs && typeof errs === 'object') {
+                    Object.values(errs).forEach((m: any) => {
+                        if (m) toast.error(String(m));
+                    });
+                }
+            }
+        });
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -180,18 +232,94 @@ const TicketCreate: React.FC<Props> = ({
                             </p>
                         </div>
 
-                        {/* CC */}
+                        {/* Ticket Name - Auto-generated Display Only */}
                         <div className="space-y-2">
-                            <Label htmlFor="cc" className={formErrors.cc ? "text-red-500" : ""}>CC</Label>
-                            <Input 
-                                id="cc" 
-                                name="cc" 
-                                type="text" 
-                                value={data.cc || ""} 
-                                onChange={handleChange} 
-                                placeholder="Email CC (separate with commas)"
-                                className={errors.cc ? "border-red-500" : ""}
-                            />
+                            <Label htmlFor="ticket_name">
+                                Ticket Name*
+                            </Label>
+                            <div className="flex items-center p-2 bg-muted rounded-md">
+                                <span className="text-sm">
+                                    {data.ticket_name || 'Will be auto-generated when ticket is created'}
+                                </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Auto-generated with sequential number
+                            </p>
+                            {errors.ticket_name && (
+                                <p className="text-xs text-red-500">{errors.ticket_name}</p>
+                            )}
+                        </div>
+
+                        {/* CC Email */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="cc">CC Email</Label>
+                                <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" size="sm" type="button">
+                                            <Plus className="h-4 w-4 mr-1" />
+                                            Add New
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Add New CC Email</DialogTitle>
+                                            <DialogDescription>
+                                                Add a new email address for CC purposes
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new_email_address">Email Address*</Label>
+                                                <Input
+                                                    id="new_email_address"
+                                                    type="email"
+                                                    value={emailForm.data.email_address}
+                                                    onChange={(e) => emailForm.setData('email_address', e.target.value)}
+                                                    placeholder="email@example.com"
+                                                />
+                                                {emailForm.errors.email_address && (
+                                                    <p className="text-xs text-red-500">{emailForm.errors.email_address}</p>
+                                                )}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new_email_name">Name (Optional)</Label>
+                                                <Input
+                                                    id="new_email_name"
+                                                    type="text"
+                                                    value={emailForm.data.name}
+                                                    onChange={(e) => emailForm.setData('name', e.target.value)}
+                                                    placeholder="Display name"
+                                                />
+                                            </div>
+                                        </div>
+                                        <DialogFooter>
+                                            <Button 
+                                                type="button" 
+                                                onClick={handleAddEmail}
+                                                disabled={emailForm.processing}
+                                            >
+                                                {emailForm.processing ? "Adding..." : "Add Email"}
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                            <Select 
+                                value={data.cc?.toString() || ""} 
+                                onValueChange={(value) => handleSelectChange("cc", parseInt(value))}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select email to CC" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {emails.map((email: any) => (
+                                        <SelectItem key={email.id} value={email.id.toString()}>
+                                            {email.email_address}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                             {errors.cc && (
                                 <p className="text-xs text-red-500">{errors.cc}</p>
                             )}
@@ -219,40 +347,66 @@ const TicketCreate: React.FC<Props> = ({
                                 <p className="text-xs text-red-500">{errors.ticket_source}</p>
                             )}
                         </div>
-
-                        {/* Ticket Notice */}
-                        <div className="space-y-2">
-                            <Label htmlFor="ticket_notice" className={formErrors.ticket_notice ? "text-red-500" : ""}>Ticket Notice</Label>
-                            <Input 
-                                id="ticket_notice" 
-                                name="ticket_notice" 
-                                type="text" 
-                                value={data.ticket_notice || ""} 
-                                onChange={handleChange}
-                                placeholder="Notification message" 
-                                maxLength={50} 
-                                className={errors.ticket_notice ? "border-red-500" : ""}
-                            />
-                            {errors.ticket_notice && (
-                                <p className="text-xs text-red-500">{errors.ticket_notice}</p>
-                            )}
-                        </div>
                         
                         {/* Help Topic */}
                         <div className="space-y-2">
-                            <Label htmlFor="help_topic" className={formErrors.help_topic ? "text-red-500" : ""}>
-                                Help Topic*
-                            </Label>
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="help_topic" className={formErrors.help_topic ? "text-red-500" : ""}>
+                                    Help Topic*
+                                </Label>
+                                <Dialog open={helpTopicDialogOpen} onOpenChange={setHelpTopicDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" size="sm" type="button">
+                                            <Plus className="h-4 w-4 mr-1" />
+                                            Add New
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Add New Help Topic</DialogTitle>
+                                            <DialogDescription>
+                                                Create a new help topic category
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new_help_topic_name">Help Topic Name*</Label>
+                                                <Input
+                                                    id="new_help_topic_name"
+                                                    type="text"
+                                                    value={helpTopicForm.data.name}
+                                                    onChange={(e) => helpTopicForm.setData('name', e.target.value)}
+                                                    placeholder="e.g., ADB Concern, DICT Issue"
+                                                />
+                                                {helpTopicForm.errors.name && (
+                                                    <p className="text-xs text-red-500">{helpTopicForm.errors.name}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <DialogFooter>
+                                            <Button 
+                                                type="button" 
+                                                onClick={handleAddHelpTopic}
+                                                disabled={helpTopicForm.processing}
+                                            >
+                                                {helpTopicForm.processing ? "Adding..." : "Add Help Topic"}
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
                             <Select 
-                                value={data.help_topic}         
-                                onValueChange={(value) => handleSelectChange("help_topic", value)}
+                                value={data.help_topic?.toString() || ""}
+                                onValueChange={(value) => handleSelectChange("help_topic", parseInt(value))}
                             >
                                 <SelectTrigger className={formErrors.help_topic ? "border-red-500" : ""}>
                                     <SelectValue placeholder="Select help topic" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {helpTopicOptions.map(topic => (
-                                        <SelectItem key={topic} value={topic}>{topic}</SelectItem>
+                                    {helpTopics.map((topic: any) => (
+                                        <SelectItem key={topic.id} value={topic.id.toString()}>
+                                            {topic.name}
+                                        </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -286,12 +440,12 @@ const TicketCreate: React.FC<Props> = ({
                         
                         {/* SLA Plan */}
                         <div className="space-y-2">
-                            <Label htmlFor="sla_plan" className={formErrors.sla_plan ? "text-red-500" : ""}>SLA Plan</Label>
+                            <Label htmlFor="sla_plan">SLA Plan</Label>
                             <Select 
                                 value={data.sla_plan || ""} 
                                 onValueChange={(value) => handleSelectChange("sla_plan", value)}
                             >
-                                <SelectTrigger className={errors.sla_plan ? "border-red-500" : ""}>
+                                <SelectTrigger>
                                     <SelectValue placeholder="Select SLA plan" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -305,21 +459,20 @@ const TicketCreate: React.FC<Props> = ({
                             )}
                         </div>
                         
-                        {/* Due Date */}
+                        {/* Opened At */}
                         <div className="space-y-2">
-                            <Label htmlFor="due_date" className={formErrors.due_date ? "text-red-500" : ""}>Due Date</Label>
+                            <Label htmlFor="opened_at">Opened At</Label>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
                                         variant={"outline"}
                                         className={cn(
                                             "w-full justify-start text-left font-normal",
-                                            !date && "text-muted-foreground",
-                                            errors.due_date && "border-red-500"
+                                            !date && "text-muted-foreground"
                                         )}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {date ? format(date, "PPP") : <span>Select due date</span>}
+                                        {date ? format(date, "PPP") : <span>Select date</span>}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
@@ -331,39 +484,40 @@ const TicketCreate: React.FC<Props> = ({
                                     />
                                 </PopoverContent>
                             </Popover>
-                            {errors.due_date && (
-                                <p className="text-xs text-red-500">{errors.due_date}</p>
-                            )}
-                        </div>
-                        
-                        {/* Canned Response */}
-                        <div className="space-y-2">
-                            <Label htmlFor="canned_response" className={formErrors.canned_response ? "text-red-500" : ""}>Canned Response</Label>
-                            <Select 
-                                value={data.canned_response || ""} 
-                                onValueChange={(value) => handleSelectChange("canned_response", value)}
-                            >
-                                <SelectTrigger className={errors.canned_response ? "border-red-500" : ""}>
-                                    <SelectValue placeholder="Select canned response" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="sample">Sample (with variable)</SelectItem>
-                                    <SelectItem value="what">what is osTicket (sample)</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            {errors.canned_response && (
-                                <p className="text-xs text-red-500">{errors.canned_response}</p>
+                            {errors.opened_at && (
+                                <p className="text-xs text-red-500">{errors.opened_at}</p>
                             )}
                         </div>
 
-                            {/* status */}
-                        <div className="space-y-2 ">
-                            <Label htmlFor="status" className={`text-lg ${formErrors.status ? "text-red-500" : ""}`}>Status</Label>
+                        {/* Priority */}
+                        <div className="space-y-2">
+                            <Label htmlFor="priority">Priority</Label>
+                            <Select 
+                                value={data.priority || ""} 
+                                onValueChange={(value) => handleSelectChange("priority", value)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select priority" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {priorityOptions.map(priority => (
+                                        <SelectItem key={priority} value={priority}>{priority}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.priority && (
+                                <p className="text-xs text-red-500">{errors.priority}</p>
+                            )}
+                        </div>
+
+                        {/* Status */}
+                        <div className="space-y-2">
+                            <Label htmlFor="status">Status</Label>
                             <Select 
                                 value={data.status || ""} 
                                 onValueChange={(value) => handleSelectChange("status", value)}
                             >
-                                <SelectTrigger className={errors.status ? "border-red-500" : ""}>
+                                <SelectTrigger>
                                     <SelectValue placeholder="Select status" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -375,22 +529,20 @@ const TicketCreate: React.FC<Props> = ({
                                 <p className="text-xs text-red-500">{errors.status}</p>
                             )}
                         </div>
-                    </div>
-                    
-                    <div>
-                            {/* user */}
-                        <div className="space-y-2 ">
-                            <Label htmlFor="assigned_to" className="text-lg">Assigned To</Label>
+
+                        {/* Assigned To */}
+                        <div className="space-y-2">
+                            <Label htmlFor="assigned_to">Assigned To</Label>
                             <Select 
-                                value={data.assigned_to || ""} 
-                                onValueChange={(value) => handleSelectChange("assigned_to", value)}
+                                value={data.assigned_to?.toString() || ""} 
+                                onValueChange={(value) => handleSelectChange("assigned_to", parseInt(value))}
                             >
-                                <SelectTrigger className={errors.assigned_to ? "border-red-500" : ""}>
+                                <SelectTrigger>
                                     <SelectValue placeholder="Select user" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {users.map((user: any) => (
-                                        <SelectItem key={user.id} value={String(user.id)}>
+                                        <SelectItem key={user.id} value={user.id.toString()}>
                                             {user.name}
                                         </SelectItem>
                                     ))}
@@ -401,25 +553,22 @@ const TicketCreate: React.FC<Props> = ({
                             )}
                         </div>
                     </div>
-
                     
                     {/* Response - Full width */}
                     <div className="space-y-2">
-                        <Label htmlFor="response" className={formErrors.response ? "text-red-500" : ""}>Response</Label>
+                        <Label htmlFor="response">Response</Label>
                         <Textarea 
                             id="response" 
                             name="response" 
                             value={data.response || ""} 
                             onChange={handleChange}
-                            className={cn("min-h-[120px]", errors.response && "border-red-500")}
+                            className="min-h-[120px]"
                             placeholder="Detailed response or notes"
                         />
                         {errors.response && (
                             <p className="text-xs text-red-500">{errors.response}</p>
                         )}
                     </div>
-
-                    
                 </form>
             </CardContent>
             <CardFooter className="flex justify-between">
