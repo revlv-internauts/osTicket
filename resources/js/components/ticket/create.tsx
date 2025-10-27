@@ -232,25 +232,31 @@ const TicketCreate: React.FC<Props> = ({
                             </p>
                         </div>
 
-                        {/* Ticket Name - Auto-generated Display Only */}
+
+                        {/* Ticket Source */}
                         <div className="space-y-2">
-                            <Label htmlFor="ticket_name">
-                                Ticket Name*
+                            <Label htmlFor="ticket_source" className={formErrors.ticket_source ? "text-red-500" : ""}>
+                                Ticket Source*
                             </Label>
-                            <div className="flex items-center p-2 bg-muted rounded-md">
-                                <span className="text-sm">
-                                    {data.ticket_name || 'Will be auto-generated when ticket is created'}
-                                </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                                Auto-generated with sequential number
-                            </p>
-                            {errors.ticket_name && (
-                                <p className="text-xs text-red-500">{errors.ticket_name}</p>
+                            <Select 
+                                value={data.ticket_source} 
+                                onValueChange={(value) => handleSelectChange("ticket_source", value)}
+                            >
+                                <SelectTrigger className={formErrors.ticket_source ? "border-red-500" : ""}>
+                                    <SelectValue placeholder="Select source" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {sourceOptions.map(source => (
+                                        <SelectItem key={source} value={source}>{source}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.ticket_source && (
+                                <p className="text-xs text-red-500">{errors.ticket_source}</p>
                             )}
                         </div>
-
-                        {/* CC Email */}
+                        
+                            {/* CC Email */}
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="cc">CC Email</Label>
@@ -325,29 +331,6 @@ const TicketCreate: React.FC<Props> = ({
                             )}
                         </div>
 
-                        {/* Ticket Source */}
-                        <div className="space-y-2">
-                            <Label htmlFor="ticket_source" className={formErrors.ticket_source ? "text-red-500" : ""}>
-                                Ticket Source*
-                            </Label>
-                            <Select 
-                                value={data.ticket_source} 
-                                onValueChange={(value) => handleSelectChange("ticket_source", value)}
-                            >
-                                <SelectTrigger className={formErrors.ticket_source ? "border-red-500" : ""}>
-                                    <SelectValue placeholder="Select source" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {sourceOptions.map(source => (
-                                        <SelectItem key={source} value={source}>{source}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {errors.ticket_source && (
-                                <p className="text-xs text-red-500">{errors.ticket_source}</p>
-                            )}
-                        </div>
-                        
                         {/* Help Topic */}
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
