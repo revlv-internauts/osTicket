@@ -99,7 +99,6 @@ export default function TicketsTable({
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
     
-    // Sorting states
     const [sortField, setSortField] = useState<SortField | null>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>(null);
 
@@ -110,7 +109,6 @@ export default function TicketsTable({
         }
     }, [pageProps?.flash?.success, pageProps?.flash?.message]);
 
-    // Sort tickets
     const sortedTickets = [...tickets].sort((a, b) => {
         if (!sortField || !sortDirection) return 0;
 

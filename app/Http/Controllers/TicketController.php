@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
+
 class TicketController extends Controller   
 {
     
@@ -121,6 +122,13 @@ class TicketController extends Controller
         try {
             $validated['ticket_name'] = $ticketName;
             $ticket = Ticket::create($validated);
+
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $image) {
+                    $path = $image->store('ticket-images', 'public');
+                }
+            }
+
             DB::commit();
 
             return redirect()->route('tickets.index')
