@@ -24,6 +24,7 @@ class CreateTicketsTable extends Migration
             $table->string('department', 100);
             $table->string('sla_plan', 100)->nullable();
             $table->timestamp('opened_at')->nullable();
+            $table->timestamp('closed_at')->nullable();
             $table->foreignId('assigned_to')->nullable()->constrained('users');
             $table->text('response')->nullable();
             $table->string('status', 50)->nullable();

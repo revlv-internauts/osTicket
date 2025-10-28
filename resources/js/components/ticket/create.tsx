@@ -33,7 +33,6 @@ import { usePage, useForm, router } from "@inertiajs/react";
 import { toast } from "sonner"
 
 type Ticket = {
-    ticket_name: string;
     user_id: number;
     cc?: number | null;
     ticket_source: string;
@@ -75,7 +74,6 @@ const TicketCreate: React.FC<Props> = ({
     const user = auth?.user;
     
     const { data, setData, post, processing, errors, reset } = useForm<Ticket>({
-        ticket_name: "",
         user_id: user?.id || 0,
         cc: null,
         ticket_source: "",
@@ -191,11 +189,12 @@ const TicketCreate: React.FC<Props> = ({
             onSuccess: () => {
                 reset();
                 setDate(undefined);
+                toast.success("Ticket created successfully!");
                 
                 if (onSuccess) {
                     onSuccess();
                 } else if (redirectUrl) {
-                    window.location.href = redirectUrl;
+                    router.visit(redirectUrl);
                 }
             },
             onError: (errs) => {
@@ -214,7 +213,7 @@ const TicketCreate: React.FC<Props> = ({
             <CardHeader>
                 <CardTitle>Create New Support Ticket</CardTitle>
                 <CardDescription>
-                    Fill in the details below to create a new support ticket
+                    Fill in the details below to create a new support ticket. Ticket name will be auto-generated.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -231,7 +230,6 @@ const TicketCreate: React.FC<Props> = ({
                                 This ticket will be created under your account
                             </p>
                         </div>
-
 
                         {/* Ticket Source */}
                         <div className="space-y-2">
@@ -256,7 +254,7 @@ const TicketCreate: React.FC<Props> = ({
                             )}
                         </div>
                         
-                            {/* CC Email */}
+                        {/* CC Email */}
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="cc">CC Email</Label>
@@ -359,7 +357,7 @@ const TicketCreate: React.FC<Props> = ({
                                                     type="text"
                                                     value={helpTopicForm.data.name}
                                                     onChange={(e) => helpTopicForm.setData('name', e.target.value)}
-                                                    placeholder="e.g., ADB Concern, DICT Issue"
+                                                    placeholder="Enter help topic name"
                                                 />
                                                 {helpTopicForm.errors.name && (
                                                     <p className="text-xs text-red-500">{helpTopicForm.errors.name}</p>
@@ -448,6 +446,7 @@ const TicketCreate: React.FC<Props> = ({
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
+                                        type="button"
                                         variant={"outline"}
                                         className={cn(
                                             "w-full justify-start text-left font-normal",

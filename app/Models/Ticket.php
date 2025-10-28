@@ -20,6 +20,7 @@ class Ticket extends Model
         'department',
         'sla_plan',
         'opened_at',
+        'closed_at',
         'assigned_to',
         'response',
         'status',
