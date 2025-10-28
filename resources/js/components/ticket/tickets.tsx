@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import TicketEdit from './edit'; 
 
 interface User {
     id: number;
@@ -98,6 +99,7 @@ export default function TicketsTable({
     const tickets = propTickets ?? (pageProps.tickets ?? []);
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
     
     const [sortField, setSortField] = useState<SortField | null>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -203,8 +205,19 @@ export default function TicketsTable({
     const handleEditFromDialog = () => {
         if (selectedTicket) {
             setDialogOpen(false);
-            router.visit(`/tickets/${selectedTicket.id}/edit`);
+            setEditDialogOpen(true);
         }
+    };
+
+    const handleCloseEditDialog = () => {
+        setEditDialogOpen(false);
+        setSelectedTicket(null);
+    };
+
+    const handleEditSuccess = () => {
+        setEditDialogOpen(false);
+        setSelectedTicket(null);
+        router.reload({ only: ['tickets'] });
     };
 
     return (
@@ -281,7 +294,7 @@ export default function TicketsTable({
                             <TableHead>
                                 <Button
                                     variant="ghost"
-                                    onClick={() => handleSort('status')}
+                                    onClick={() => handleSort('priority')}
                                     className="h-8 px-2 hover:bg-transparent"
                                 >
                                     Priority
@@ -326,15 +339,6 @@ export default function TicketsTable({
                                     <TableCell>{ticket.department || '-'}</TableCell>
                                     <TableCell>
                                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                            ticket.status === 'Open' ? 'bg-green-100 text-green-800' :
-                                            ticket.status === 'Closed' ? 'bg-gray-100 text-gray-800' :
-                                            'bg-blue-100 text-blue-800'
-                                        }`}>
-                                            {ticket.status || 'Unknown'}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                                             ticket.priority === 'Low' ? 'bg-green-100 text-green-800' :
                                             ticket.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
                                             ticket.priority === 'High' ? 'bg-red-100 text-red-800' :
@@ -342,6 +346,15 @@ export default function TicketsTable({
                                             'bg-blue-100 text-blue-800'
                                         }`}>
                                             {ticket.priority || 'Unknown'}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                            ticket.status === 'Open' ? 'bg-green-100 text-green-800' :
+                                            ticket.status === 'Closed' ? 'bg-gray-100 text-gray-800' :
+                                            'bg-blue-100 text-blue-800'
+                                        }`}>
+                                            {ticket.status || 'Unknown'}
                                         </span>
                                     </TableCell>
                                     <TableCell>{formatDate(ticket.created_at)}</TableCell>
@@ -463,6 +476,25 @@ export default function TicketsTable({
                             Edit Ticket
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Ticket Dialog */}
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl">Edit Ticket</DialogTitle>
+                        <DialogDescription>
+                            Make changes to the ticket information
+                        </DialogDescription>
+                    </DialogHeader>
+                    {selectedTicket && (
+                        <TicketEdit
+                            ticket={selectedTicket}
+                            onSuccess={handleEditSuccess}
+                            redirectUrl={null}
+                        />
+                    )}
                 </DialogContent>
             </Dialog>
         </>
