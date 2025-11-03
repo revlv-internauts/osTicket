@@ -11,27 +11,24 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
-
 class TicketController extends Controller   
 {
-    
-
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        $allTickets = Ticket::with(['user', 'assignedToUser', 'helpTopicRelation'])
+        $allTickets = Ticket::with(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails'])
                            ->orderBy('created_at', 'desc')
                            ->get();
        
-        $myTickets = Ticket::with(['user', 'assignedToUser', 'helpTopicRelation'])
+        $myTickets = Ticket::with(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails'])
                           ->where('user_id', Auth::id())
                           ->orderBy('created_at', 'desc')
                           ->get();
         
         $users = User::select('id', 'name')->get();
-        $emails = Email::select('id', 'email_address')->get();
+        $emails = Email::select('id', 'email_address', 'name')->get();
         $helpTopics = HelpTopic::select('id', 'name')->get();
 
         return Inertia::render('ticket', [
@@ -49,7 +46,7 @@ class TicketController extends Controller
     public function create()
     {
         $users = User::select('id', 'name')->get();
-        $emails = Email::select('id', 'email_address')->get();
+        $emails = Email::select('id', 'email_address', 'name')->get();
         $helpTopics = HelpTopic::select('id', 'name')->get();
 
         return Inertia::render('Tickets/Create', [
@@ -58,7 +55,8 @@ class TicketController extends Controller
             'helpTopics' => $helpTopics,
         ]);
     }
-/**
+
+    /**
      * Generate auto-incrementing ticket name
      */
     private function generateTicketName($helpTopicId)
@@ -75,16 +73,13 @@ class TicketController extends Controller
             ->first();
 
         if ($lastTicket) {
-            
             preg_match('/-(\d+)$/', $lastTicket->ticket_name, $matches);
             $lastNumber = isset($matches[1]) ? (int)$matches[1] : 0;
             $nextNumber = $lastNumber + 1;
         } else {
-           
             $nextNumber = 1;
         }
 
-        
         return $helpTopic->name . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
     }   
     /**
@@ -94,7 +89,8 @@ class TicketController extends Controller
     {
         $validated = $request->validate([
             'user_id'       => 'required|exists:users,id',
-            'cc'            => 'nullable|exists:emails,id',
+            'cc'            => 'nullable|array',
+            'cc.*'          => 'exists:emails,id',
             'ticket_source' => 'required|string|max:50',
             'help_topic'    => 'required|exists:help_topics,id',
             'department'    => 'required|string|max:100',
@@ -110,18 +106,23 @@ class TicketController extends Controller
             return back()->withErrors(['user_id' => 'You cannot create tickets for other users.']);
         }
 
-        // Generate auto-incrementing ticket name
         $ticketName = $this->generateTicketName($validated['help_topic']);
         
         if (!$ticketName) {
             return back()->withErrors(['help_topic' => 'Invalid help topic selected.']);
         }
 
-        // Use transaction to prevent race conditions
         DB::beginTransaction();
         try {
             $validated['ticket_name'] = $ticketName;
+            $ccEmails = $validated['cc'] ?? [];
+            unset($validated['cc']);
+            
             $ticket = Ticket::create($validated);
+
+            if (!empty($ccEmails)) {
+                $ticket->ccEmails()->attach($ccEmails);
+            }
 
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $image) {
@@ -135,7 +136,7 @@ class TicketController extends Controller
                 ->with('success', 'Ticket created successfully with ID: ' . $ticketName);
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => 'Failed to create ticket. Please try again.']);
+            return back()->withErrors(['error' => 'Failed to create ticket: ' . $e->getMessage()]);
         }
     }
 
@@ -144,7 +145,7 @@ class TicketController extends Controller
      */
     public function show(Ticket $ticket)
     {
-        $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmail']);
+        $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails']);
         
         return Inertia::render('Tickets/Show', [
             'ticket' => $ticket
@@ -156,8 +157,9 @@ class TicketController extends Controller
      */
     public function edit(Ticket $ticket)
     {
+        $ticket->load('ccEmails');
         $users = User::select('id', 'name')->get();
-        $emails = Email::select('id', 'email_address')->get();
+        $emails = Email::select('id', 'email_address', 'name')->get();
         $helpTopics = HelpTopic::select('id', 'name')->get();
 
         return Inertia::render('Tickets/Edit', [
@@ -174,7 +176,8 @@ class TicketController extends Controller
     public function update(Request $request, Ticket $ticket)
     {
         $validated = $request->validate([
-            'cc'            => 'nullable|exists:emails,id',
+            'cc'            => 'nullable|array',
+            'cc.*'          => 'exists:emails,id',
             'ticket_source' => 'required|string|max:50',
             'help_topic'    => 'required|exists:help_topics,id',
             'department'    => 'required|string|max:100',
@@ -186,11 +189,23 @@ class TicketController extends Controller
             'priority'      => 'nullable|string|max:50',
         ]);
 
-        // Don't allow changing ticket_name after creation
-        $ticket->update($validated);
+        DB::beginTransaction();
+        try {
+            $ccEmails = $validated['cc'] ?? [];
+            unset($validated['cc']);
 
-        return redirect()->route('tickets.show', $ticket->id)
-            ->with('success', 'Ticket updated successfully.');
+            $ticket->update($validated);
+
+            // Sync CC emails
+            $ticket->ccEmails()->sync($ccEmails);
+
+            DB::commit();
+
+            return back()->with('success', 'Ticket updated successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Failed to update ticket: ' . $e->getMessage()]);
+        }
     }
 
     /**

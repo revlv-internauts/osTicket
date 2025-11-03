@@ -33,6 +33,7 @@ interface HelpTopic {
 interface Email {
     id: number;
     email_address: string;
+    name?: string;
 }
 
 interface Ticket {
@@ -40,8 +41,8 @@ interface Ticket {
     ticket_name: string;
     user_id: number;
     user?: User;
-    cc?: number;
-    cc_email?: Email;
+    cc?: number[];
+    cc_emails?: Email[];
     ticket_notice?: string;
     ticket_source: string;
     help_topic: number;
@@ -400,7 +401,6 @@ export default function TicketsTable({
                                     </Badge>
                                 </div>
                             </div>
-
                             <Separator />
 
                             {/* Main Details */}
@@ -429,9 +429,20 @@ export default function TicketsTable({
                                     <p className="text-sm font-medium text-muted-foreground">Assigned To</p>
                                     <p className="text-base">{selectedTicket.assigned_to_user?.name || '-'}</p>
                                 </div>
-                                <div>
-                                    <p className="text-sm font-medium text-muted-foreground">CC Email</p>
-                                    <p className="text-base">{selectedTicket.cc_email?.email_address || '-'}</p>
+                                <div className="col-span-2">
+                                    <p className="text-sm font-medium text-muted-foreground mb-2">CC Emails</p>
+                                    {selectedTicket.cc_emails && selectedTicket.cc_emails.length > 0 ? (
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedTicket.cc_emails.map((email) => (
+                                                <Badge key={email.id} variant="secondary">
+                                                    {email.email_address}
+                                                    {email.name && ` (${email.name})`}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-base text-muted-foreground">No CC emails</p>
+                                    )}
                                 </div>
                             </div>
 
@@ -490,7 +501,10 @@ export default function TicketsTable({
                     </DialogHeader>
                     {selectedTicket && (
                         <TicketEdit
-                            ticket={selectedTicket}
+                            ticket={{
+                                ...selectedTicket,
+                                cc: selectedTicket.cc?.[0] ?? null
+                            }}
                             onSuccess={handleEditSuccess}
                             redirectUrl={null}
                         />

@@ -30,11 +30,12 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { usePage, useForm, router } from "@inertiajs/react";
-import { toast } from "sonner"
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 type Ticket = {
     user_id: number;
-    cc?: number | null;
+    cc?: number[] | null;
     ticket_source: string;
     help_topic: number;
     department: string;
@@ -76,7 +77,7 @@ const TicketCreate: React.FC<Props> = ({
 
     const { data, setData, post, processing, errors, reset } = useForm<Ticket>({
         user_id: user?.id || 0,
-        cc: null,
+        cc: [],
         ticket_source: "",
         help_topic: 0,
         department: "",
@@ -93,6 +94,7 @@ const TicketCreate: React.FC<Props> = ({
     const [emailDialogOpen, setEmailDialogOpen] = useState(false);
     const [helpTopicDialogOpen, setHelpTopicDialogOpen] = useState(false);
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+    const [ccPopoverOpen, setCcPopoverOpen] = useState(false);
 
    
     const emailForm = useForm({
@@ -139,7 +141,6 @@ const TicketCreate: React.FC<Props> = ({
         
         setData("images", updatedImages);
 
-        // Create preview URLs
         const newPreviews = newFiles.map(file => URL.createObjectURL(file));
         setImagePreviews(prev => [...prev, ...newPreviews]);
     };
@@ -149,9 +150,30 @@ const TicketCreate: React.FC<Props> = ({
         const updatedImages = currentImages.filter((_, i) => i !== index);
         setData("images", updatedImages);
 
-        // Revoke and remove preview URL
         URL.revokeObjectURL(imagePreviews[index]);
         setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    };
+
+
+    const handleCcEmailToggle = (emailId: number) => {
+        const currentCc = data.cc || [];
+        const isSelected = currentCc.includes(emailId);
+        
+        if (isSelected) {
+            setData("cc", currentCc.filter(id => id !== emailId));
+        } else {
+            setData("cc", [...currentCc, emailId]);
+        }
+    };
+
+    const removeCcEmail = (emailId: number) => {
+        const currentCc = data.cc || [];
+        setData("cc", currentCc.filter(id => id !== emailId));
+    };
+
+    const getSelectedEmails = () => {
+        const currentCc = data.cc || [];
+        return emails.filter((email: any) => currentCc.includes(email.id));
     };
 
     const validateForm = () => {
@@ -268,105 +290,8 @@ const TicketCreate: React.FC<Props> = ({
                             </p>
                         </div>
 
-                        {/* Ticket Source */}
-                        <div className="space-y-2">
-                            <Label htmlFor="ticket_source" className={formErrors.ticket_source ? "text-red-500" : ""}>
-                                Ticket Source*
-                            </Label>
-                            <Select 
-                                value={data.ticket_source} 
-                                onValueChange={(value) => handleSelectChange("ticket_source", value)}
-                            >
-                                <SelectTrigger className={formErrors.ticket_source ? "border-red-500" : ""}>
-                                    <SelectValue placeholder="Select source" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {sourceOptions.map(source => (
-                                        <SelectItem key={source} value={source}>{source}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {errors.ticket_source && (
-                                <p className="text-xs text-red-500">{errors.ticket_source}</p>
-                            )}
-                        </div>
                         
-                        {/* CC Email */}
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <Label htmlFor="cc">CC Email</Label>
-                                <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button variant="outline" size="sm" type="button">
-                                            <Plus className="h-4 w-4 mr-1" />
-                                            Add New
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Add New CC Email</DialogTitle>
-                                            <DialogDescription>
-                                                Add a new email address for CC purposes
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <div className="space-y-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="new_email_address">Email Address*</Label>
-                                                <Input
-                                                    id="new_email_address"
-                                                    type="email"
-                                                    value={emailForm.data.email_address}
-                                                    onChange={(e) => emailForm.setData('email_address', e.target.value)}
-                                                    placeholder="email@example.com"
-                                                />
-                                                {emailForm.errors.email_address && (
-                                                    <p className="text-xs text-red-500">{emailForm.errors.email_address}</p>
-                                                )}
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="new_email_name">Name (Optional)</Label>
-                                                <Input
-                                                    id="new_email_name"
-                                                    type="text"
-                                                    value={emailForm.data.name}
-                                                    onChange={(e) => emailForm.setData('name', e.target.value)}
-                                                    placeholder="Display name"
-                                                />
-                                            </div>
-                                        </div>
-                                        <DialogFooter>
-                                            <Button 
-                                                type="button" 
-                                                onClick={handleAddEmail}
-                                                disabled={emailForm.processing}
-                                            >
-                                                {emailForm.processing ? "Adding..." : "Add Email"}
-                                            </Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
-                            </div>
-                            <Select 
-                                value={data.cc?.toString() || ""} 
-                                onValueChange={(value) => handleSelectChange("cc", parseInt(value))}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select email to CC" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {emails.map((email: any) => (
-                                        <SelectItem key={email.id} value={email.id.toString()}>
-                                            {email.email_address}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {errors.cc && (
-                                <p className="text-xs text-red-500">{errors.cc}</p>
-                            )}
-                        </div>
-
-                        {/* Help Topic */}
+                                                {/* Help Topic */}
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="help_topic" className={formErrors.help_topic ? "text-red-500" : ""}>
@@ -430,6 +355,159 @@ const TicketCreate: React.FC<Props> = ({
                             </Select>
                             {errors.help_topic && (
                                 <p className="text-xs text-red-500">{errors.help_topic}</p>
+                            )}
+                        </div>
+                        
+                        {/* CC Email - Multi Select */}
+                        <div className="space-y-2 md:col-span-2">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="cc">CC Emails (Multiple)</Label>
+                                <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" size="sm" type="button">
+                                            <Plus className="h-4 w-4 mr-1" />
+                                            Add New
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Add New CC Email</DialogTitle>
+                                            <DialogDescription>
+                                                Add a new email address for CC purposes
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new_email_address">Email Address*</Label>
+                                                <Input
+                                                    id="new_email_address"
+                                                    type="email"
+                                                    value={emailForm.data.email_address}
+                                                    onChange={(e) => emailForm.setData('email_address', e.target.value)}
+                                                    placeholder="email@example.com"
+                                                />
+                                                {emailForm.errors.email_address && (
+                                                    <p className="text-xs text-red-500">{emailForm.errors.email_address}</p>
+                                                )}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new_email_name">Name (Optional)</Label>
+                                                <Input
+                                                    id="new_email_name"
+                                                    type="text"
+                                                    value={emailForm.data.name}
+                                                    onChange={(e) => emailForm.setData('name', e.target.value)}
+                                                    placeholder="Display name"
+                                                />
+                                            </div>
+                                        </div>
+                                        <DialogFooter>
+                                            <Button 
+                                                type="button" 
+                                                onClick={handleAddEmail}
+                                                disabled={emailForm.processing}
+                                            >
+                                                {emailForm.processing ? "Adding..." : "Add Email"}
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                            
+                            <Popover open={ccPopoverOpen} onOpenChange={setCcPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="w-full justify-start text-left font-normal"
+                                    >
+                                        <span className="text-muted-foreground">
+                                            {getSelectedEmails().length > 0 
+                                                ? `${getSelectedEmails().length} email(s) selected` 
+                                                : "Select emails to CC"}
+                                        </span>
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-full p-0" align="start">
+                                    <div className="max-h-64 overflow-y-auto">
+                                        {emails.length > 0 ? (
+                                            emails.map((email: any) => {
+                                                const isSelected = (data.cc || []).includes(email.id);
+                                                return (
+                                                    <div
+                                                        key={email.id}
+                                                        className={cn(
+                                                            "flex items-center px-3 py-2 cursor-pointer hover:bg-muted",
+                                                            isSelected && "bg-muted"
+                                                        )}
+                                                        onClick={() => handleCcEmailToggle(email.id)}
+                                                    >
+                                                        <div className="flex items-center space-x-2 flex-1">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isSelected}
+                                                                onChange={() => {}}
+                                                                className="h-4 w-4"
+                                                            />
+                                                            <span className="text-sm">{email.email_address}</span>
+                                                            {email.name && (
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    ({email.name})
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                                No emails available. Add one using the button above.
+                                            </div>
+                                        )}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+
+                            {/* Display selected emails as badges */}
+                            {getSelectedEmails().length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {getSelectedEmails().map((email: any) => (
+                                        <Badge key={email.id} variant="secondary" className="gap-1">
+                                            {email.email_address}
+                                            <X
+                                                className="h-3 w-3 cursor-pointer hover:text-destructive"
+                                                onClick={() => removeCcEmail(email.id)}
+                                            />
+                                        </Badge>
+                                    ))}
+                                </div>
+                            )}
+                            
+                            {errors.cc && (
+                                <p className="text-xs text-red-500">{errors.cc}</p>
+                            )}
+                        </div>
+
+                        {/* Ticket Source */}
+                        <div className="space-y-2">
+                            <Label htmlFor="ticket_source" className={formErrors.ticket_source ? "text-red-500" : ""}>
+                                Ticket Source*
+                            </Label>
+                            <Select 
+                                value={data.ticket_source} 
+                                onValueChange={(value) => handleSelectChange("ticket_source", value)}
+                            >
+                                <SelectTrigger className={formErrors.ticket_source ? "border-red-500" : ""}>
+                                    <SelectValue placeholder="Select source" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {sourceOptions.map(source => (
+                                        <SelectItem key={source} value={source}>{source}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.ticket_source && (
+                                <p className="text-xs text-red-500">{errors.ticket_source}</p>
                             )}
                         </div>
 
@@ -541,7 +619,6 @@ const TicketCreate: React.FC<Props> = ({
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="Open">Open</SelectItem>
-                                    <SelectItem value="Closed">Closed</SelectItem>
                                 </SelectContent>
                             </Select>
                             {errors.status && (
@@ -640,7 +717,7 @@ const TicketCreate: React.FC<Props> = ({
                                             >
                                                 <X className="h-4 w-4" />
                                             </Button>
-                                            <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center">
+                                            <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center truncate">
                                                 {data.images?.[index]?.name}
                                             </div>
                                         </div>
