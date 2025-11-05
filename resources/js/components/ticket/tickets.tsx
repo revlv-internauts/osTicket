@@ -501,10 +501,7 @@ export default function TicketsTable({
                     </DialogHeader>
                     {selectedTicket && (
                         <TicketEdit
-                            ticket={{
-                                ...selectedTicket,
-                                cc: selectedTicket.cc?.[0] ?? null
-                            }}
+                            ticket={selectedTicket}
                             onSuccess={handleEditSuccess}
                             redirectUrl={null}
                         />

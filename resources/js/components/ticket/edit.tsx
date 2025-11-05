@@ -3,157 +3,126 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { CalendarIcon, UserIcon, Plus } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Upload, X, Image as ImageIcon, CheckCircle, XCircle } from "lucide-react";
 import { format, parseISO } from "date-fns";
-import { cn } from "@/lib/utils";
-import { usePage, useForm, router } from "@inertiajs/react";
-import { toast } from "sonner"
+import { router } from "@inertiajs/react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 type TicketFormData = {
+    response?: string | null;
+    status?: string | null;
+    images?: File[];
+};
+
+type TicketData = {
+    id: number;
+    ticket_name: string;
     user_id: number;
-    cc?: number | null;
+    cc?: number[] | null;
     ticket_source: string;
     help_topic: number;
     department: string;
     sla_plan?: string | null;
     opened_at?: string | null;
+    closed_at?: string | null;
     assigned_to?: number | null;
     response?: string | null;
     status?: string | null;
     priority?: string | null;
-};
-
-type TicketData = TicketFormData & {
-    id: number;
-    ticket_name: string;
     created_at: string;
     updated_at: string;
     user?: { id: number; name: string };
-    cc_email?: { id: number; email_address: string };
+    cc_emails?: Array<{ id: number; email_address: string; name?: string }>;
     help_topic_relation?: { id: number; name: string };
     assigned_to_user?: { id: number; name: string };
 };
 
 type Props = {
     ticket: TicketData;
-    sourceOptions?: string[];
-    departmentOptions?: string[];
-    slaOptions?: string[];
-    statusOptions?: string[];
-    priorityOptions?: string[];
-    redirectUrl?: string | null; 
-    onSuccess?: () => void; 
+    redirectUrl?: string | null;
+    onSuccess?: () => void;
 };
 
-const defaultSourceOptions = ["Email", "Phone"];
-const defaultDepartmentOptions = ["NOC"];
-const defaultSlaOptions = ["ADB SLA (18 hours - Active)", "Default SLA (18 hours - Active)", "DICT-MIMAROPA-PRVNET (18 hours - Active)", "PIALEOS 3 SLA (18 hours - Active)"];
-const defaultPriorityOptions = ["Low", "Medium", "High", "Critical"];
-
-const TicketEdit: React.FC<Props> = ({ 
+const TicketEdit: React.FC<Props> = ({
     ticket,
-    sourceOptions = defaultSourceOptions,
-    departmentOptions = defaultDepartmentOptions,
-    slaOptions = defaultSlaOptions,
-    priorityOptions = defaultPriorityOptions,
     redirectUrl = "/tickets",
     onSuccess
 }) => {
-
-    const { auth, users = [], emails = [], helpTopics = [] } = usePage().props as any;
-    const user = auth?.user;
-    
-    const { data, setData, put, processing, errors, reset } = useForm<TicketFormData>({
-        user_id: ticket.user_id,
-        cc: ticket.cc,
-        ticket_source: ticket.ticket_source,
-        help_topic: ticket.help_topic,
-        department: ticket.department,
-        sla_plan: ticket.sla_plan,
-        opened_at: ticket.opened_at,
-        assigned_to: ticket.assigned_to,
+    const [data, setData] = useState<TicketFormData>({
         response: ticket.response,
         status: ticket.status,
-        priority: ticket.priority,
+        images: [] as File[],
     });
 
-    const [emailDialogOpen, setEmailDialogOpen] = useState(false);
-    const [helpTopicDialogOpen, setHelpTopicDialogOpen] = useState(false);
+    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+    const [processing, setProcessing] = useState(false);
+    const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-    const emailForm = useForm({
-        email_address: "",
-        name: "",
-    });
+    useEffect(() => {
+        return () => {
+            imagePreviews.forEach(url => URL.revokeObjectURL(url));
+        };
+    }, [imagePreviews]);
 
-    const helpTopicForm = useForm({
-        name: "",
-    });
-
-    const [date, setDate] = useState<Date | undefined>(
-        ticket.opened_at ? parseISO(ticket.opened_at) : undefined
-    );
-    const [formErrors, setFormErrors] = useState<{[key: string]: boolean}>({});
-
-    const handleChange = (
-        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-    ) => {
-        const { name, value } = e.target;
-        setData(name as keyof TicketFormData, value);
+    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const { value } = e.target;
+        setData(prev => ({ ...prev, response: value }));
     };
 
-    const handleSelectChange = (name: keyof TicketFormData, value: string | number) => {
-        setData(name, value as any);
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+
+        const newFiles = Array.from(files);
+        const currentImages = data.images || [];
+        const updatedImages = [...currentImages, ...newFiles];
+
+        setData(prev => ({ ...prev, images: updatedImages }));
+
+        const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+        setImagePreviews(prev => [...prev, ...newPreviews]);
     };
 
-    const handleDateChange = (date: Date | undefined) => {
-        setDate(date);
-        setData("opened_at", date ? format(date, "yyyy-MM-dd'T'HH:mm:ss") : null);
+    const removeImage = (index: number) => {
+        const currentImages = data.images || [];
+        const updatedImages = currentImages.filter((_, i) => i !== index);
+        setData(prev => ({ ...prev, images: updatedImages }));
+
+        URL.revokeObjectURL(imagePreviews[index]);
+        setImagePreviews(prev => prev.filter((_, i) => i !== index));
     };
 
-    const validateForm = () => {
-        const newErrors: {[key: string]: boolean} = {};
-        if (!data.ticket_source) newErrors.ticket_source = true;
-        if (!data.help_topic) newErrors.help_topic = true;
-        if (!data.department) newErrors.department = true;
+    const handleCloseTicket = () => {
+        setProcessing(true);
+        const formData = new FormData();
+        formData.append('_method', 'PUT');
+        formData.append('response', data.response || '');
+        formData.append('status', 'Closed');
         
-        setFormErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
+        if (data.images && data.images.length > 0) {
+            data.images.forEach((image, index) => {
+                formData.append(`images[${index}]`, image);
+            });
+        }
 
-    const handleAddEmail = (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        emailForm.post("/emails", {
+        router.post(`/tickets/${ticket.id}`, formData, {
             onSuccess: () => {
-                emailForm.reset();
-                setEmailDialogOpen(false);
-                toast.success("Email added successfully");
-                router.reload({ only: ['emails'] });
+                setProcessing(false);
+                setData(prev => ({ ...prev, images: [] }));
+                setImagePreviews([]);
+                toast.success("Ticket closed successfully!");
+
+                if (onSuccess) {
+                    onSuccess();
+                } else if (redirectUrl) {
+                    router.visit(redirectUrl);
+                }
             },
             onError: (errs) => {
+                setProcessing(false);
+                setErrors(errs as any);
                 console.error(errs);
                 if (errs && typeof errs === 'object') {
                     Object.values(errs).forEach((m: any) => {
@@ -164,17 +133,35 @@ const TicketEdit: React.FC<Props> = ({
         });
     };
 
-    const handleAddHelpTopic = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleReopenTicket = () => {
+        setProcessing(true);
+        const formData = new FormData();
+        formData.append('_method', 'PUT');
+        formData.append('response', data.response || '');
+        formData.append('status', 'Open');
         
-        helpTopicForm.post("/help-topics", {
+        if (data.images && data.images.length > 0) {
+            data.images.forEach((image, index) => {
+                formData.append(`images[${index}]`, image);
+            });
+        }
+
+        router.post(`/tickets/${ticket.id}`, formData, {
             onSuccess: () => {
-                helpTopicForm.reset();
-                setHelpTopicDialogOpen(false);
-                toast.success("Help Topic added successfully");
-                router.reload({ only: ['helpTopics'] });
+                setProcessing(false);
+                setData(prev => ({ ...prev, images: [] }));
+                setImagePreviews([]);
+                toast.success("Ticket reopened successfully!");
+
+                if (onSuccess) {
+                    onSuccess();
+                } else if (redirectUrl) {
+                    router.visit(redirectUrl);
+                }
             },
             onError: (errs) => {
+                setProcessing(false);
+                setErrors(errs as any);
                 console.error(errs);
                 if (errs && typeof errs === 'object') {
                     Object.values(errs).forEach((m: any) => {
@@ -187,15 +174,25 @@ const TicketEdit: React.FC<Props> = ({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        setProcessing(true);
+
+        const formData = new FormData();
+        formData.append('_method', 'PUT');
+        formData.append('response', data.response || '');
         
-        if (!validateForm()) {
-            return;
+        if (data.images && data.images.length > 0) {
+            data.images.forEach((image, index) => {
+                formData.append(`images[${index}]`, image);
+            });
         }
 
-        put(`/tickets/${ticket.id}`, {
+        router.post(`/tickets/${ticket.id}`, formData, {
             onSuccess: () => {
+                setProcessing(false);
+                setData(prev => ({ ...prev, images: [] }));
+                setImagePreviews([]);
                 toast.success("Ticket updated successfully!");
-                
+
                 if (onSuccess) {
                     onSuccess();
                 } else if (redirectUrl) {
@@ -203,6 +200,8 @@ const TicketEdit: React.FC<Props> = ({
                 }
             },
             onError: (errs) => {
+                setProcessing(false);
+                setErrors(errs as any);
                 console.error(errs);
                 if (errs && typeof errs === 'object') {
                     Object.values(errs).forEach((m: any) => {
@@ -213,366 +212,267 @@ const TicketEdit: React.FC<Props> = ({
         });
     };
 
+    const isTicketClosed = ticket.status === 'Closed';
+
     return (
         <Card className="w-full">
             <CardHeader>
-                <CardTitle>Edit Support Ticket</CardTitle>
-                <CardDescription>
-                    Update the ticket information below. Ticket: {ticket.ticket_name}
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <CardTitle>Ticket Details</CardTitle>
+                        <CardDescription>
+                            Viewing ticket: {ticket.ticket_name}
+                        </CardDescription>
+                    </div>
+                    <Badge variant={isTicketClosed ? 'secondary' : 'default'} className="text-sm">
+                        {ticket.status}
+                    </Badge>
+                </div>
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* User Information - Read Only */}
+                        {/* Ticket Name - Read Only */}
+                        <div className="space-y-2">
+                            <Label>Ticket Number</Label>
+                            <div className="p-2 bg-muted rounded-md">
+                                <span className="font-semibold">{ticket.ticket_name}</span>
+                            </div>
+                        </div>
+
+                        {/* Submitted By - Read Only */}
                         <div className="space-y-2">
                             <Label>Submitted By</Label>
-                            <div className="flex items-center p-2 bg-muted rounded-md">
-                                <UserIcon className="h-4 w-4 mr-2 text-muted-foreground" />
+                            <div className="p-2 bg-muted rounded-md">
                                 <span>{ticket.user?.name || 'Unknown'}</span>
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                                Original submitter cannot be changed
-                            </p>
                         </div>
 
-                        {/* Ticket Source */}
+                        {/* Ticket Source - Read Only */}
                         <div className="space-y-2">
-                            <Label htmlFor="ticket_source" className={formErrors.ticket_source ? "text-red-500" : ""}>
-                                Ticket Source*
-                            </Label>
-                            <Select 
-                                value={data.ticket_source} 
-                                onValueChange={(value) => handleSelectChange("ticket_source", value)}
-                            >
-                                <SelectTrigger className={formErrors.ticket_source ? "border-red-500" : ""}>
-                                    <SelectValue placeholder="Select source" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {sourceOptions.map(source => (
-                                        <SelectItem key={source} value={source}>{source}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {errors.ticket_source && (
-                                <p className="text-xs text-red-500">{errors.ticket_source}</p>
-                            )}
-                        </div>
-                        
-                        {/* CC Email */}
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <Label htmlFor="cc">CC Email</Label>
-                                <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button variant="outline" size="sm" type="button">
-                                            <Plus className="h-4 w-4 mr-1" />
-                                            Add New
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Add New CC Email</DialogTitle>
-                                            <DialogDescription>
-                                                Add a new email address for CC purposes
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <div className="space-y-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="new_email_address">Email Address*</Label>
-                                                <Input
-                                                    id="new_email_address"
-                                                    type="email"
-                                                    value={emailForm.data.email_address}
-                                                    onChange={(e) => emailForm.setData('email_address', e.target.value)}
-                                                    placeholder="email@example.com"
-                                                />
-                                                {emailForm.errors.email_address && (
-                                                    <p className="text-xs text-red-500">{emailForm.errors.email_address}</p>
-                                                )}
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="new_email_name">Name (Optional)</Label>
-                                                <Input
-                                                    id="new_email_name"
-                                                    type="text"
-                                                    value={emailForm.data.name}
-                                                    onChange={(e) => emailForm.setData('name', e.target.value)}
-                                                    placeholder="Display name"
-                                                />
-                                            </div>
-                                        </div>
-                                        <DialogFooter>
-                                            <Button 
-                                                type="button" 
-                                                onClick={handleAddEmail}
-                                                disabled={emailForm.processing}
-                                            >
-                                                {emailForm.processing ? "Adding..." : "Add Email"}
-                                            </Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
+                            <Label>Ticket Source</Label>
+                            <div className="p-2 bg-muted rounded-md">
+                                <span>{ticket.ticket_source}</span>
                             </div>
-                            <Select 
-                                value={data.cc?.toString() || ""} 
-                                onValueChange={(value) => handleSelectChange("cc", parseInt(value))}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select email to CC" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {emails.map((email: any) => (
-                                        <SelectItem key={email.id} value={email.id.toString()}>
+                        </div>
+
+                        {/* Help Topic - Read Only */}
+                        <div className="space-y-2">
+                            <Label>Help Topic</Label>
+                            <div className="p-2 bg-muted rounded-md">
+                                <span>{ticket.help_topic_relation?.name || 'N/A'}</span>
+                            </div>
+                        </div>
+
+                        {/* CC Emails - Read Only */}
+                        <div className="space-y-2 md:col-span-2">
+                            <Label>CC Emails</Label>
+                            {ticket.cc_emails && ticket.cc_emails.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {ticket.cc_emails.map((email: any) => (
+                                        <Badge key={email.id} variant="secondary">
                                             {email.email_address}
-                                        </SelectItem>
+                                        </Badge>
                                     ))}
-                                </SelectContent>
-                            </Select>
-                            {errors.cc && (
-                                <p className="text-xs text-red-500">{errors.cc}</p>
+                                </div>
+                            ) : (
+                                <div className="p-2 bg-muted rounded-md">
+                                    <span className="text-muted-foreground text-sm">No CC emails</span>
+                                </div>
                             )}
                         </div>
 
-                        {/* Help Topic */}
+                        {/* Department - Read Only */}
                         <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <Label htmlFor="help_topic" className={formErrors.help_topic ? "text-red-500" : ""}>
-                                    Help Topic*
-                                </Label>
-                                <Dialog open={helpTopicDialogOpen} onOpenChange={setHelpTopicDialogOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button variant="outline" size="sm" type="button">
-                                            <Plus className="h-4 w-4 mr-1" />
-                                            Add New
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Add New Help Topic</DialogTitle>
-                                            <DialogDescription>
-                                                Create a new help topic category
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <div className="space-y-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="new_help_topic_name">Help Topic Name*</Label>
-                                                <Input
-                                                    id="new_help_topic_name"
-                                                    type="text"
-                                                    value={helpTopicForm.data.name}
-                                                    onChange={(e) => helpTopicForm.setData('name', e.target.value)}
-                                                    placeholder="Enter help topic name"
-                                                />
-                                                {helpTopicForm.errors.name && (
-                                                    <p className="text-xs text-red-500">{helpTopicForm.errors.name}</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <DialogFooter>
-                                            <Button 
-                                                type="button" 
-                                                onClick={handleAddHelpTopic}
-                                                disabled={helpTopicForm.processing}
-                                            >
-                                                {helpTopicForm.processing ? "Adding..." : "Add Help Topic"}
-                                            </Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
+                            <Label>Department</Label>
+                            <div className="p-2 bg-muted rounded-md">
+                                <span>{ticket.department}</span>
                             </div>
-                            <Select 
-                                value={data.help_topic?.toString() || ""}
-                                onValueChange={(value) => handleSelectChange("help_topic", parseInt(value))}
-                            >
-                                <SelectTrigger className={formErrors.help_topic ? "border-red-500" : ""}>
-                                    <SelectValue placeholder="Select help topic" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {helpTopics.map((topic: any) => (
-                                        <SelectItem key={topic.id} value={topic.id.toString()}>
-                                            {topic.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {errors.help_topic && (
-                                <p className="text-xs text-red-500">{errors.help_topic}</p>
-                            )}
                         </div>
 
-                        {/* Department */}
+                        {/* SLA Plan - Read Only */}
                         <div className="space-y-2">
-                            <Label htmlFor="department" className={formErrors.department ? "text-red-500" : ""}>
-                                Department*
-                            </Label>
-                            <Select 
-                                value={data.department} 
-                                onValueChange={(value) => handleSelectChange("department", value)}
-                            >
-                                <SelectTrigger className={formErrors.department ? "border-red-500" : ""}>
-                                    <SelectValue placeholder="Select department" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {departmentOptions.map(dept => (
-                                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {errors.department && (
-                                <p className="text-xs text-red-500">{errors.department}</p>
-                            )}
-                        </div>
-                        
-                        {/* SLA Plan */}
-                        <div className="space-y-2">
-                            <Label htmlFor="sla_plan">SLA Plan</Label>
-                            <Select 
-                                value={data.sla_plan || ""} 
-                                onValueChange={(value) => handleSelectChange("sla_plan", value)}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select SLA plan" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {slaOptions.map(sla => (
-                                        <SelectItem key={sla} value={sla}>{sla}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {errors.sla_plan && (
-                                <p className="text-xs text-red-500">{errors.sla_plan}</p>
-                            )}
-                        </div>
-                        
-                        {/* Opened At */}
-                        <div className="space-y-2">
-                            <Label htmlFor="opened_at">Opened At</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        type="button"
-                                        variant={"outline"}
-                                        className={cn(
-                                            "w-full justify-start text-left font-normal",
-                                            !date && "text-muted-foreground"
-                                        )}
-                                    >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {date ? format(date, "PPP") : <span>Select date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                        mode="single"
-                                        selected={date}
-                                        onSelect={handleDateChange}
-                                        initialFocus
-                                    />
-                                </PopoverContent>
-                            </Popover>
-                            {errors.opened_at && (
-                                <p className="text-xs text-red-500">{errors.opened_at}</p>
-                            )}
+                            <Label>SLA Plan</Label>
+                            <div className="p-2 bg-muted rounded-md">
+                                <span>{ticket.sla_plan || 'N/A'}</span>
+                            </div>
                         </div>
 
-                        {/* Priority */}
+                        {/* Opened At - Read Only */}
                         <div className="space-y-2">
-                            <Label htmlFor="priority">Priority</Label>
-                            <Select 
-                                value={data.priority || ""} 
-                                onValueChange={(value) => handleSelectChange("priority", value)}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select priority" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {priorityOptions.map(priority => (
-                                        <SelectItem key={priority} value={priority}>{priority}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {errors.priority && (
-                                <p className="text-xs text-red-500">{errors.priority}</p>
-                            )}
+                            <Label>Opened At</Label>
+                            <div className="p-2 bg-muted rounded-md">
+                                <span>
+                                    {ticket.opened_at 
+                                        ? format(parseISO(ticket.opened_at), "PPP p")
+                                        : 'N/A'}
+                                </span>
+                            </div>
                         </div>
 
-                        {/* Status */}
+                        {/* Closed At - Read Only */}
+                        {ticket.closed_at && (
+                            <div className="space-y-2">
+                                <Label>Closed At</Label>
+                                <div className="p-2 bg-muted rounded-md">
+                                    <span>
+                                        {format(parseISO(ticket.closed_at), "PPP p")}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Priority - Read Only */}
                         <div className="space-y-2">
-                            <Label htmlFor="status">Status</Label>
-                            <Select 
-                                value={data.status || ""} 
-                                onValueChange={(value) => handleSelectChange("status", value)}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Open">Open</SelectItem>
-                                    <SelectItem value="Closed">Closed</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            {errors.status && (
-                                <p className="text-xs text-red-500">{errors.status}</p>
-                            )}
+                            <Label>Priority</Label>
+                            <div className="p-2 bg-muted rounded-md">
+                                <span>{ticket.priority || 'N/A'}</span>
+                            </div>
                         </div>
 
-                        {/* Assigned To */}
+                        {/* Assigned To - Read Only */}
                         <div className="space-y-2">
-                            <Label htmlFor="assigned_to">Assigned To</Label>
-                            <Select 
-                                value={data.assigned_to?.toString() || ""} 
-                                onValueChange={(value) => handleSelectChange("assigned_to", parseInt(value))}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select user" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {users.map((user: any) => (
-                                        <SelectItem key={user.id} value={user.id.toString()}>
-                                            {user.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {errors.assigned_to && (
-                                <p className="text-xs text-red-500">{errors.assigned_to}</p>
-                            )}
+                            <Label>Assigned To</Label>
+                            <div className="p-2 bg-muted rounded-md">
+                                <span>{ticket.assigned_to_user?.name || 'Unassigned'}</span>
+                            </div>
                         </div>
                     </div>
-                    
-                    {/* Response - Full width */}
+
+                    {/* Response - Editable */}
                     <div className="space-y-2">
-                        <Label htmlFor="response">Response</Label>
-                        <Textarea 
-                            id="response" 
-                            name="response" 
-                            value={data.response || ""} 
+                        <Label htmlFor="response">Add Response</Label>
+                        <Textarea
+                            id="response"
+                            name="response"
+                            value={data.response || ""}
                             onChange={handleChange}
                             className="min-h-[120px]"
-                            placeholder="Detailed response or notes"
+                            placeholder="Add your response or notes here..."
+                            disabled={isTicketClosed}
                         />
                         {errors.response && (
                             <p className="text-xs text-red-500">{errors.response}</p>
                         )}
                     </div>
+
+                    {/* Image Upload Section - Editable */}
+                    {!isTicketClosed && (
+                        <div className="space-y-2">
+                            <Label htmlFor="images">Attach New Images</Label>
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        id="images"
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        onChange={handleImageChange}
+                                        className="hidden"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => document.getElementById('images')?.click()}
+                                        className="w-full sm:w-auto"
+                                    >
+                                        <Upload className="h-4 w-4 mr-2" />
+                                        Upload Images
+                                    </Button>
+                                    <p className="text-xs text-muted-foreground">
+                                        {data.images && data.images.length > 0
+                                            ? `${data.images.length} image(s) selected`
+                                            : 'No new images selected'}
+                                    </p>
+                                </div>
+
+                                {imagePreviews.length > 0 && (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                        {imagePreviews.map((preview, index) => (
+                                            <div key={index} className="relative group">
+                                                <div className="aspect-square rounded-lg border overflow-hidden bg-muted">
+                                                    <img
+                                                        src={preview}
+                                                        alt={`Preview ${index + 1}`}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="destructive"
+                                                    size="icon"
+                                                    className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    onClick={() => removeImage(index)}
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center truncate">
+                                                    {data.images?.[index]?.name}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {imagePreviews.length === 0 && (
+                                    <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                                        <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                                        <p className="text-sm text-muted-foreground">
+                                            No new images attached yet
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Click "Upload Images" to add screenshots or photos
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                            {errors.images && (
+                                <p className="text-xs text-red-500">{errors.images}</p>
+                            )}
+                        </div>
+                    )}
                 </form>
             </CardContent>
             <CardFooter className="flex justify-between">
-                <Button 
+                <Button
                     variant="outline"
                     onClick={() => router.visit(redirectUrl || "/tickets")}
                     type="button"
                 >
-                    Cancel
+                    Back
                 </Button>
-                <Button 
-                    onClick={handleSubmit} 
-                    type="submit" 
-                    disabled={processing}
-                >
-                    {processing ? "Updating..." : "Update Ticket"}
-                </Button>
+                <div className="flex gap-2">
+                    {isTicketClosed ? (
+                        <Button
+                            variant="default"
+                            onClick={handleReopenTicket}
+                            type="button"
+                            disabled={processing}
+                        >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            {processing ? "Reopening..." : "Reopen Ticket"}
+                        </Button>
+                    ) : (
+                        <>
+                            <Button
+                                variant="destructive"
+                                onClick={handleCloseTicket}
+                                type="button"
+                                disabled={processing}
+                            >
+                                <XCircle className="h-4 w-4 mr-2" />
+                                {processing ? "Closing..." : "Close Ticket"}
+                            </Button>
+                            <Button
+                                onClick={handleSubmit}
+                                type="submit"
+                                disabled={processing}
+                            >
+                                {processing ? "Updating..." : "Update Response"}
+                            </Button>
+                        </>
+                    )}
+                </div>
             </CardFooter>
         </Card>
     );

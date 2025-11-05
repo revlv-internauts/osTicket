@@ -67,7 +67,6 @@ export default function List({ users }: ListProps) {
                         <TableHead className="w-[100px]">ID</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
-                        <TableHead>Job Title</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -77,7 +76,6 @@ export default function List({ users }: ListProps) {
                                     <TableCell className="font-medium">{user.id}</TableCell>
                                     <TableCell>{user.name}</TableCell>
                                     <TableCell>{user.email}</TableCell>
-                                    <TableCell>{user.created_at}</TableCell>
                                 </TableRow>
                             ))
                         ) : (

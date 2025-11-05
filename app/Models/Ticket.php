@@ -25,6 +25,7 @@ class Ticket extends Model
         'sla_plan',
         'due_date',
         'opened_at',
+        'closed_at',
         'assigned_to',
         'canned_response',
         'response',

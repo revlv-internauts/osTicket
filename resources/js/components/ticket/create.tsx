@@ -4,28 +4,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { CalendarIcon, UserIcon, Plus, Upload, X, Image as ImageIcon } from "lucide-react";
+import { CalendarIcon, UserIcon, Plus, Upload, X, Image as ImageIcon, Clock } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -52,18 +52,22 @@ type Props = {
     sourceOptions?: string[];
     departmentOptions?: string[];
     slaOptions?: string[];
-    statusOptions?: string[];
     priorityOptions?: string[];
-    redirectUrl?: string | null; 
-    onSuccess?: () => void; 
+    redirectUrl?: string | null;
+    onSuccess?: () => void;
 };
 
 const defaultSourceOptions = ["Email", "Phone"];
 const defaultDepartmentOptions = ["NOC"];
-const defaultSlaOptions = ["ADB SLA (18 hours - Active)", "Default SLA (18 hours - Active)", "DICT-MIMAROPA-PRVNET (18 hours - Active)", "PIALEOS 3 SLA (18 hours - Active)"];
+const defaultSlaOptions = [
+    "ADB SLA (18 hours - Active)",
+    "Default SLA (18 hours - Active)",
+    "DICT-MIMAROPA-PRVNET (18 hours - Active)",
+    "PIALEOS 3 SLA (18 hours - Active)"
+];
 const defaultPriorityOptions = ["Low", "Medium", "High", "Critical"];
 
-const TicketCreate: React.FC<Props> = ({ 
+const TicketCreate: React.FC<Props> = ({
     sourceOptions = defaultSourceOptions,
     departmentOptions = defaultDepartmentOptions,
     slaOptions = defaultSlaOptions,
@@ -71,13 +75,25 @@ const TicketCreate: React.FC<Props> = ({
     redirectUrl = "/tickets",
     onSuccess
 }) => {
-
     const { auth, users = [], emails = [], helpTopics = [] } = usePage().props as any;
     const user = auth?.user;
 
-    const { data, setData, post, processing, errors, reset } = useForm<Ticket>({
+    const { data, setData, post, processing, errors } = useForm<{
+        user_id: number;
+        cc: number[];
+        ticket_source: string;
+        help_topic: number;
+        department: string;
+        sla_plan: string | null;
+        opened_at: string | null;
+        assigned_to: number | null;
+        response: string | null;
+        status: string | null;
+        priority: string | null;
+        images: File[];
+    }>({
         user_id: user?.id || 0,
-        cc: [],
+        cc: [] as number[],
         ticket_source: "",
         help_topic: 0,
         department: "",
@@ -90,13 +106,14 @@ const TicketCreate: React.FC<Props> = ({
         images: [],
     });
 
-  
     const [emailDialogOpen, setEmailDialogOpen] = useState(false);
     const [helpTopicDialogOpen, setHelpTopicDialogOpen] = useState(false);
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [ccPopoverOpen, setCcPopoverOpen] = useState(false);
+    const [date, setDate] = useState<Date | undefined>(undefined);
+    const [time, setTime] = useState<string>("12:00");
+    const [formErrors, setFormErrors] = useState<{ [key: string]: boolean }>({});
 
-   
     const emailForm = useForm({
         email_address: "",
         name: "",
@@ -106,18 +123,40 @@ const TicketCreate: React.FC<Props> = ({
         name: "",
     });
 
-    const [date, setDate] = useState<Date | undefined>(undefined);
-    const [formErrors, setFormErrors] = useState<{[key: string]: boolean}>({});
-
     useEffect(() => {
         if (user?.id) {
             setData("user_id", user.id);
         }
     }, [user]);
 
-    const handleChange = (
-        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-    ) => {
+    useEffect(() => {
+        return () => {
+            imagePreviews.forEach(url => URL.revokeObjectURL(url));
+        };
+    }, [imagePreviews]);
+
+    const resetForm = () => {
+        setData({
+            user_id: user?.id || 0,
+            cc: [] as number[],
+            ticket_source: "",
+            help_topic: 0,
+            department: "",
+            sla_plan: null as string | null,
+            opened_at: null as string | null,
+            assigned_to: null as number | null,
+            response: null as string | null,
+            status: "Open" as string | null,
+            priority: null as string | null,
+            images: [] as File[],
+        });
+        setDate(undefined);
+        setTime("12:00");
+        setImagePreviews([]);
+        setFormErrors({});
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setData(name as keyof Ticket, value);
     };
@@ -126,9 +165,25 @@ const TicketCreate: React.FC<Props> = ({
         setData(name, value as any);
     };
 
-    const handleDateChange = (date: Date | undefined) => {
-        setDate(date);
-        setData("opened_at", date ? format(date, "yyyy-MM-dd'T'HH:mm:ss") : null);
+    const handleDateChange = (selectedDate: Date | undefined) => {
+        setDate(selectedDate);
+        updateOpenedAt(selectedDate, time);
+    };
+
+    const handleTimeChange = (newTime: string) => {
+        setTime(newTime);
+        updateOpenedAt(date, newTime);
+    };
+
+    const updateOpenedAt = (selectedDate: Date | undefined, selectedTime: string) => {
+        if (selectedDate && selectedTime) {
+            const [hours, minutes] = selectedTime.split(':');
+            const dateTime = new Date(selectedDate);
+            dateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+            setData("opened_at", format(dateTime, "yyyy-MM-dd'T'HH:mm:ss"));
+        } else {
+            setData("opened_at", null);
+        }
     };
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,7 +193,7 @@ const TicketCreate: React.FC<Props> = ({
         const newFiles = Array.from(files);
         const currentImages = data.images || [];
         const updatedImages = [...currentImages, ...newFiles];
-        
+
         setData("images", updatedImages);
 
         const newPreviews = newFiles.map(file => URL.createObjectURL(file));
@@ -154,11 +209,10 @@ const TicketCreate: React.FC<Props> = ({
         setImagePreviews(prev => prev.filter((_, i) => i !== index));
     };
 
-
     const handleCcEmailToggle = (emailId: number) => {
         const currentCc = data.cc || [];
         const isSelected = currentCc.includes(emailId);
-        
+
         if (isSelected) {
             setData("cc", currentCc.filter(id => id !== emailId));
         } else {
@@ -177,18 +231,18 @@ const TicketCreate: React.FC<Props> = ({
     };
 
     const validateForm = () => {
-        const newErrors: {[key: string]: boolean} = {};
+        const newErrors: { [key: string]: boolean } = {};
         if (!data.ticket_source) newErrors.ticket_source = true;
         if (!data.help_topic) newErrors.help_topic = true;
         if (!data.department) newErrors.department = true;
-        
+
         setFormErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
     const handleAddEmail = (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         emailForm.post("/emails", {
             onSuccess: () => {
                 emailForm.reset();
@@ -209,7 +263,7 @@ const TicketCreate: React.FC<Props> = ({
 
     const handleAddHelpTopic = (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         helpTopicForm.post("/help-topics", {
             onSuccess: () => {
                 helpTopicForm.reset();
@@ -230,7 +284,7 @@ const TicketCreate: React.FC<Props> = ({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (!validateForm()) {
             return;
         }
@@ -238,11 +292,9 @@ const TicketCreate: React.FC<Props> = ({
         post("/tickets", {
             forceFormData: true,
             onSuccess: () => {
-                reset();
-                setDate(undefined);
-                setImagePreviews([]);
+                resetForm();
                 toast.success("Ticket created successfully!");
-                
+
                 if (onSuccess) {
                     onSuccess();
                 } else if (redirectUrl) {
@@ -259,13 +311,6 @@ const TicketCreate: React.FC<Props> = ({
             }
         });
     };
-
-    // Cleanup preview URLs on unmount
-    useEffect(() => {
-        return () => {
-            imagePreviews.forEach(url => URL.revokeObjectURL(url));
-        };
-    }, []);
 
     return (
         <Card className="w-full">
@@ -290,8 +335,7 @@ const TicketCreate: React.FC<Props> = ({
                             </p>
                         </div>
 
-                        
-                                                {/* Help Topic */}
+                        {/* Help Topic */}
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="help_topic" className={formErrors.help_topic ? "text-red-500" : ""}>
@@ -327,8 +371,8 @@ const TicketCreate: React.FC<Props> = ({
                                             </div>
                                         </div>
                                         <DialogFooter>
-                                            <Button 
-                                                type="button" 
+                                            <Button
+                                                type="button"
                                                 onClick={handleAddHelpTopic}
                                                 disabled={helpTopicForm.processing}
                                             >
@@ -338,7 +382,7 @@ const TicketCreate: React.FC<Props> = ({
                                     </DialogContent>
                                 </Dialog>
                             </div>
-                            <Select 
+                            <Select
                                 value={data.help_topic?.toString() || ""}
                                 onValueChange={(value) => handleSelectChange("help_topic", parseInt(value))}
                             >
@@ -357,7 +401,7 @@ const TicketCreate: React.FC<Props> = ({
                                 <p className="text-xs text-red-500">{errors.help_topic}</p>
                             )}
                         </div>
-                        
+
                         {/* CC Email - Multi Select */}
                         <div className="space-y-2 md:col-span-2">
                             <div className="flex items-center justify-between">
@@ -402,8 +446,8 @@ const TicketCreate: React.FC<Props> = ({
                                             </div>
                                         </div>
                                         <DialogFooter>
-                                            <Button 
-                                                type="button" 
+                                            <Button
+                                                type="button"
                                                 onClick={handleAddEmail}
                                                 disabled={emailForm.processing}
                                             >
@@ -413,7 +457,7 @@ const TicketCreate: React.FC<Props> = ({
                                     </DialogContent>
                                 </Dialog>
                             </div>
-                            
+
                             <Popover open={ccPopoverOpen} onOpenChange={setCcPopoverOpen}>
                                 <PopoverTrigger asChild>
                                     <Button
@@ -422,8 +466,8 @@ const TicketCreate: React.FC<Props> = ({
                                         className="w-full justify-start text-left font-normal"
                                     >
                                         <span className="text-muted-foreground">
-                                            {getSelectedEmails().length > 0 
-                                                ? `${getSelectedEmails().length} email(s) selected` 
+                                            {getSelectedEmails().length > 0
+                                                ? `${getSelectedEmails().length} email(s) selected`
                                                 : "Select emails to CC"}
                                         </span>
                                     </Button>
@@ -446,7 +490,7 @@ const TicketCreate: React.FC<Props> = ({
                                                             <input
                                                                 type="checkbox"
                                                                 checked={isSelected}
-                                                                onChange={() => {}}
+                                                                onChange={() => { }}
                                                                 className="h-4 w-4"
                                                             />
                                                             <span className="text-sm">{email.email_address}</span>
@@ -468,7 +512,6 @@ const TicketCreate: React.FC<Props> = ({
                                 </PopoverContent>
                             </Popover>
 
-                            {/* Display selected emails as badges */}
                             {getSelectedEmails().length > 0 && (
                                 <div className="flex flex-wrap gap-2 mt-2">
                                     {getSelectedEmails().map((email: any) => (
@@ -482,7 +525,7 @@ const TicketCreate: React.FC<Props> = ({
                                     ))}
                                 </div>
                             )}
-                            
+
                             {errors.cc && (
                                 <p className="text-xs text-red-500">{errors.cc}</p>
                             )}
@@ -493,8 +536,8 @@ const TicketCreate: React.FC<Props> = ({
                             <Label htmlFor="ticket_source" className={formErrors.ticket_source ? "text-red-500" : ""}>
                                 Ticket Source*
                             </Label>
-                            <Select 
-                                value={data.ticket_source} 
+                            <Select
+                                value={data.ticket_source}
                                 onValueChange={(value) => handleSelectChange("ticket_source", value)}
                             >
                                 <SelectTrigger className={formErrors.ticket_source ? "border-red-500" : ""}>
@@ -516,8 +559,8 @@ const TicketCreate: React.FC<Props> = ({
                             <Label htmlFor="department" className={formErrors.department ? "text-red-500" : ""}>
                                 Department*
                             </Label>
-                            <Select 
-                                value={data.department} 
+                            <Select
+                                value={data.department}
                                 onValueChange={(value) => handleSelectChange("department", value)}
                             >
                                 <SelectTrigger className={formErrors.department ? "border-red-500" : ""}>
@@ -533,12 +576,12 @@ const TicketCreate: React.FC<Props> = ({
                                 <p className="text-xs text-red-500">{errors.department}</p>
                             )}
                         </div>
-                        
+
                         {/* SLA Plan */}
                         <div className="space-y-2">
                             <Label htmlFor="sla_plan">SLA Plan</Label>
-                            <Select 
-                                value={data.sla_plan || ""} 
+                            <Select
+                                value={data.sla_plan || ""}
                                 onValueChange={(value) => handleSelectChange("sla_plan", value)}
                             >
                                 <SelectTrigger>
@@ -554,33 +597,89 @@ const TicketCreate: React.FC<Props> = ({
                                 <p className="text-xs text-red-500">{errors.sla_plan}</p>
                             )}
                         </div>
-                        
-                        {/* Opened At */}
+
+                        {/* Opened At - Date and Time */}
                         <div className="space-y-2">
                             <Label htmlFor="opened_at">Opened At</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        type="button"
-                                        variant={"outline"}
-                                        className={cn(
-                                            "w-full justify-start text-left font-normal",
-                                            !date && "text-muted-foreground"
-                                        )}
-                                    >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {date ? format(date, "PPP") : <span>Select date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                        mode="single"
-                                        selected={date}
-                                        onSelect={handleDateChange}
-                                        initialFocus
+                            <div className="flex gap-2">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            variant={"outline"}
+                                            className={cn(
+                                                "flex-1 justify-start text-left font-normal h-10",
+                                                !date && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {date ? format(date, "PPP") : <span>Pick a date</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
+                                        <Calendar
+                                            mode="single"
+                                            selected={date}
+                                            onSelect={handleDateChange}
+                                            initialFocus
+                                            className="rounded-md border shadow-md"
+                                            classNames={{
+                                                months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 p-3",
+                                                month: "space-y-4",
+                                                caption: "flex justify-center pt-1 relative items-center h-10",
+                                                caption_label: "text-base font-semibold",
+                                                nav: "space-x-1 flex items-center",
+                                                nav_button: cn(
+                                                    "h-8 w-8 bg-transparent p-0 opacity-70 hover:opacity-100",
+                                                    "hover:bg-accent rounded-md transition-colors"
+                                                ),
+                                                nav_button_previous: "absolute left-1",
+                                                nav_button_next: "absolute right-1",
+                                                table: "w-full border-collapse space-y-1",
+                                                head_row: "flex",
+                                                head_cell: "text-muted-foreground rounded-md w-10 font-normal text-sm",
+                                                row: "flex w-full mt-2",
+                                                cell: cn(
+                                                    "relative p-0 text-center text-sm focus-within:relative focus-within:z-20",
+                                                    "[&:has([aria-selected])]:bg-accent",
+                                                    "[&:has([aria-selected].day-outside)]:bg-accent/50",
+                                                    "[&:has([aria-selected].day-range-end)]:rounded-r-md",
+                                                    "first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md"
+                                                ),
+                                                day: cn(
+                                                    "h-10 w-10 p-0 font-normal aria-selected:opacity-100",
+                                                    "hover:bg-accent hover:text-accent-foreground rounded-md transition-colors",
+                                                    "focus:bg-accent focus:text-accent-foreground"
+                                                ),
+                                                day_range_end: "day-range-end",
+                                                day_selected: cn(
+                                                    "bg-primary text-primary-foreground",
+                                                    "hover:bg-primary hover:text-primary-foreground",
+                                                    "focus:bg-primary focus:text-primary-foreground"
+                                                ),
+                                                day_today: "bg-accent text-accent-foreground font-semibold",
+                                                day_outside: cn(
+                                                    "day-outside text-muted-foreground opacity-50",
+                                                    "aria-selected:bg-accent/50 aria-selected:text-muted-foreground",
+                                                    "aria-selected:opacity-30"
+                                                ),
+                                                day_disabled: "text-muted-foreground opacity-50 cursor-not-allowed",
+                                                day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                                                day_hidden: "invisible",
+                                            }}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                                <div className="relative flex-1">
+                                    <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        type="time"
+                                        value={time}
+                                        onChange={(e) => handleTimeChange(e.target.value)}
+                                        className="pl-10 h-10 w-full"
                                     />
-                                </PopoverContent>
-                            </Popover>
+                                </div>
+                            </div>
                             {errors.opened_at && (
                                 <p className="text-xs text-red-500">{errors.opened_at}</p>
                             )}
@@ -589,8 +688,8 @@ const TicketCreate: React.FC<Props> = ({
                         {/* Priority */}
                         <div className="space-y-2">
                             <Label htmlFor="priority">Priority</Label>
-                            <Select 
-                                value={data.priority || ""} 
+                            <Select
+                                value={data.priority || ""}
                                 onValueChange={(value) => handleSelectChange("priority", value)}
                             >
                                 <SelectTrigger>
@@ -610,8 +709,8 @@ const TicketCreate: React.FC<Props> = ({
                         {/* Status */}
                         <div className="space-y-2">
                             <Label htmlFor="status">Status</Label>
-                            <Select 
-                                value={data.status || ""} 
+                            <Select
+                                value={data.status || ""}
                                 onValueChange={(value) => handleSelectChange("status", value)}
                             >
                                 <SelectTrigger>
@@ -629,8 +728,8 @@ const TicketCreate: React.FC<Props> = ({
                         {/* Assigned To */}
                         <div className="space-y-2">
                             <Label htmlFor="assigned_to">Assigned To</Label>
-                            <Select 
-                                value={data.assigned_to?.toString() || ""} 
+                            <Select
+                                value={data.assigned_to?.toString() || ""}
                                 onValueChange={(value) => handleSelectChange("assigned_to", parseInt(value))}
                             >
                                 <SelectTrigger>
@@ -649,14 +748,14 @@ const TicketCreate: React.FC<Props> = ({
                             )}
                         </div>
                     </div>
-                    
+
                     {/* Response - Full width */}
                     <div className="space-y-2">
                         <Label htmlFor="response">Response</Label>
-                        <Textarea 
-                            id="response" 
-                            name="response" 
-                            value={data.response || ""} 
+                        <Textarea
+                            id="response"
+                            name="response"
+                            value={data.response || ""}
                             onChange={handleChange}
                             className="min-h-[120px]"
                             placeholder="Detailed response or notes"
@@ -670,7 +769,6 @@ const TicketCreate: React.FC<Props> = ({
                     <div className="space-y-2">
                         <Label htmlFor="images">Attach Images</Label>
                         <div className="space-y-4">
-                            {/* Upload Button */}
                             <div className="flex items-center gap-2">
                                 <Input
                                     id="images"
@@ -690,13 +788,12 @@ const TicketCreate: React.FC<Props> = ({
                                     Upload Images
                                 </Button>
                                 <p className="text-xs text-muted-foreground">
-                                    {data.images && data.images.length > 0 
-                                        ? `${data.images.length} image(s) selected` 
+                                    {data.images && data.images.length > 0
+                                        ? `${data.images.length} image(s) selected`
                                         : 'No images selected'}
                                 </p>
                             </div>
 
-                            {/* Image Previews */}
                             {imagePreviews.length > 0 && (
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                     {imagePreviews.map((preview, index) => (
@@ -725,7 +822,6 @@ const TicketCreate: React.FC<Props> = ({
                                 </div>
                             )}
 
-                            {/* Empty State */}
                             {imagePreviews.length === 0 && (
                                 <div className="border-2 border-dashed rounded-lg p-8 text-center">
                                     <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
@@ -745,9 +841,9 @@ const TicketCreate: React.FC<Props> = ({
                 </form>
             </CardContent>
             <CardFooter className="flex justify-between">
-                <Button 
-                    onClick={handleSubmit} 
-                    type="submit" 
+                <Button
+                    onClick={handleSubmit}
+                    type="submit"
                     disabled={processing}
                 >
                     {processing ? "Creating..." : "Create Ticket"}
