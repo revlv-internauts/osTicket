@@ -17,10 +17,10 @@ return new class extends Migration
             $table->foreignId('email_id')->constrained()->onDelete('cascade');
             $table->timestamps();
 
-            // Prevent duplicate entries
+          
             $table->unique(['ticket_id', 'email_id']);
             
-            // Indexes for better performance
+        
             $table->index('ticket_id');
             $table->index('email_id');
         });

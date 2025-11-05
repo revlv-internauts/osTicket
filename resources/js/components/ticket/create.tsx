@@ -621,6 +621,7 @@ const TicketCreate: React.FC<Props> = ({
                                             mode="single"
                                             selected={date}
                                             onSelect={handleDateChange}
+                                            disabled={(date) => date > new Date()}
                                             initialFocus
                                             className="rounded-md border shadow-md"
                                             classNames={{

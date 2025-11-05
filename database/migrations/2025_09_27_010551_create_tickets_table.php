@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('ticket_name')->unique();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->json('cc')->nullable(); // Store multiple CC email IDs as JSON
+            $table->json('cc')->nullable();
             $table->text('ticket_notice')->nullable();
             $table->string('ticket_source', 50);
             $table->foreignId('help_topic')->constrained('help_topics')->onDelete('cascade');
@@ -31,7 +31,7 @@ return new class extends Migration
             $table->string('priority', 50)->nullable();
             $table->timestamps();
 
-            // Indexes for better query performance
+            
             $table->index('user_id');
             $table->index('assigned_to');
             $table->index('help_topic');

@@ -8,7 +8,6 @@ use App\Models\Email;
 use App\Models\HelpTopic;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Carbon\Carbon;
 
@@ -116,33 +115,25 @@ class TicketController extends Controller
             return back()->withErrors(['help_topic' => 'Invalid help topic selected.']);
         }
 
-        DB::beginTransaction();
-        try {
-            $validated['ticket_name'] = $ticketName;
-            $ccEmails = $validated['cc'] ?? [];
-            unset($validated['cc']);
-            unset($validated['images']);
-            
-            $ticket = Ticket::create($validated);
+        $validated['ticket_name'] = $ticketName;
+        $ccEmails = $validated['cc'] ?? [];
+        unset($validated['cc']);
+        unset($validated['images']);
+        
+        $ticket = Ticket::create($validated);
 
-            if (!empty($ccEmails)) {
-                $ticket->ccEmails()->attach($ccEmails);
-            }
-
-            if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $image) {
-                    $path = $image->store('ticket-images', 'public');
-                }
-            }
-
-            DB::commit();
-
-            return redirect()->route('tickets.index')
-                ->with('success', 'Ticket created successfully with ID: ' . $ticketName);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['error' => 'Failed to create ticket: ' . $e->getMessage()]);
+        if (!empty($ccEmails)) {
+            $ticket->ccEmails()->attach($ccEmails);
         }
+
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('ticket-images', 'public');
+            }
+        }
+
+        return redirect()->route('tickets.index')
+            ->with('success', 'Ticket created successfully with ID: ' . $ticketName);
     }
 
     /**
@@ -181,49 +172,35 @@ class TicketController extends Controller
             'images.*' => 'image|max:2048',
         ]);
 
-        DB::beginTransaction();
-        try {
-            $updateData = [];
+        $updateData = [];
 
-            // Update response if provided
-            if (isset($validated['response'])) {
-                $updateData['response'] = $validated['response'];
-            }
-
-            // Handle status change
-            if (isset($validated['status'])) {
-                $updateData['status'] = $validated['status'];
-                
-                // Set closed_at when closing ticket
-                if ($validated['status'] === 'Closed' && $ticket->status !== 'Closed') {
-                    $updateData['closed_at'] = Carbon::now();
-                }
-                
-                // Clear closed_at when reopening ticket
-                if ($validated['status'] === 'Open' && $ticket->status === 'Closed') {
-                    $updateData['closed_at'] = null;
-                }
-            }
-
-            // Update ticket
-            if (!empty($updateData)) {
-                $ticket->update($updateData);
-            }
-
-            // Handle image uploads
-            if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $image) {
-                    $path = $image->store('ticket-images', 'public'); 
-                }
-            }
-
-            DB::commit();
-
-            return back()->with('success', 'Ticket updated successfully.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['error' => 'Failed to update ticket: ' . $e->getMessage()]);
+        if (isset($validated['response'])) {
+            $updateData['response'] = $validated['response'];
         }
+
+        if (isset($validated['status'])) {
+            $updateData['status'] = $validated['status'];
+            
+            if ($validated['status'] === 'Closed' && $ticket->status !== 'Closed') {
+                $updateData['closed_at'] = Carbon::now();
+            }
+
+            if ($validated['status'] === 'Open' && $ticket->status === 'Closed') {
+                $updateData['closed_at'] = null;
+            }
+        }
+
+        if (!empty($updateData)) {
+            $ticket->update($updateData);
+        }
+
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('ticket-images', 'public'); 
+            }
+        }
+
+        return back()->with('success', 'Ticket updated successfully.');
     }
 
     /**
@@ -231,17 +208,9 @@ class TicketController extends Controller
      */
     public function destroy(Ticket $ticket)
     {
-        DB::beginTransaction();
-        try {
-            $ticket->delete();
+        $ticket->delete();
 
-            DB::commit();
-
-            return redirect()->route('tickets.index')
-                ->with('success', 'Ticket deleted successfully.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['error' => 'Failed to delete ticket: ' . $e->getMessage()]);
-        }
+        return redirect()->route('tickets.index')
+            ->with('success', 'Ticket deleted successfully.');
     }
 }
