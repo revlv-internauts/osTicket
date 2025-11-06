@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ticket;
+use App\Models\HelpTopic;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -37,12 +38,26 @@ class DashboardController extends Controller
             ->values()
             ->toArray();
 
-        $helpTopicStats = Ticket::select('help_topic')
+        // Get Help Topic Stats with names using JOIN
+        $helpTopicStats = DB::table('tickets')
+            ->join('help_topics', 'tickets.help_topic', '=', 'help_topics.id')
+            ->select('help_topics.name as help_topic')
             ->selectRaw('COUNT(*) as total')
-            ->selectRaw("SUM(CASE WHEN status = 'Open' THEN 1 ELSE 0 END) as opened")
-            ->selectRaw("SUM(CASE WHEN status = 'Closed' THEN 1 ELSE 0 END) as closed")
-            ->groupBy('help_topic')
+            ->selectRaw("SUM(CASE WHEN tickets.status = 'Open' THEN 1 ELSE 0 END) as opened")
+            ->selectRaw("SUM(CASE WHEN tickets.status = 'Closed' THEN 1 ELSE 0 END) as closed")
+            ->whereNotNull('tickets.help_topic')
+            ->where('tickets.help_topic', '>', 0)
+            ->groupBy('help_topics.id', 'help_topics.name')
+            ->orderBy('total', 'desc')
             ->get()
+            ->map(function ($stat) {
+                return [
+                    'help_topic' => $stat->help_topic,
+                    'opened' => (int) $stat->opened,
+                    'closed' => (int) $stat->closed,
+                    'total' => (int) $stat->total,
+                ];
+            })
             ->toArray();
 
         return Inertia::render('dashboard', [

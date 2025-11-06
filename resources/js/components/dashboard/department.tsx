@@ -36,19 +36,79 @@ export type HelpTopicStat = {
 export const columns: ColumnDef<HelpTopicStat>[] = [
   {
     accessorKey: "help_topic",
-    header: () => "Department",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Department
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+    cell: ({ row }) => {
+      return <div className="font-medium">{row.getValue("help_topic")}</div>
+    },
   },
   {
     accessorKey: "opened",
-    header: () => "Opened",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Opened
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+    cell: ({ row }) => {
+      return (
+        <Badge variant="default" className="bg-green-500">
+          {row.getValue("opened")}
+        </Badge>
+      )
+    },
   },
   {
     accessorKey: "closed",
-    header: () => "Closed",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Closed
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+    cell: ({ row }) => {
+      return (
+        <Badge variant="secondary" className="bg-red-500 text-white">
+          {row.getValue("closed")}
+        </Badge>
+      )
+    },
   },
   {
     accessorKey: "total",
-    header: () => "Total",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Total
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+    cell: ({ row }) => {
+      return <Badge variant="outline">{row.getValue("total")}</Badge>
+    },
   },
 ]
 
@@ -129,7 +189,7 @@ export function DataTableDemo({ data = [] }: DataTableDemoProps) {
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No results.
+                  No departments found.
                 </TableCell>
               </TableRow>
             )}
@@ -137,6 +197,9 @@ export function DataTableDemo({ data = [] }: DataTableDemoProps) {
         </Table>
       </div>
       <div className="flex items-center justify-end space-x-2 py-4">
+        <div className="flex-1 text-sm text-muted-foreground">
+          {table.getFilteredRowModel().rows.length} department(s) total
+        </div>
       </div>
     </div>
   )

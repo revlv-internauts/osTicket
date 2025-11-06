@@ -57,7 +57,7 @@ type Props = {
     onSuccess?: () => void;
 };
 
-const defaultSourceOptions = ["Email", "Phone"];
+const defaultSourceOptions = ["Email"];
 const defaultDepartmentOptions = ["NOC"];
 const defaultSlaOptions = [
     "ADB SLA (18 hours - Active)",
@@ -330,9 +330,6 @@ const TicketCreate: React.FC<Props> = ({
                                 <UserIcon className="h-4 w-4 mr-2 text-muted-foreground" />
                                 <span>{user?.name || 'Loading user...'}</span>
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                                This ticket will be created under your account
-                            </p>
                         </div>
 
                         {/* Help Topic */}

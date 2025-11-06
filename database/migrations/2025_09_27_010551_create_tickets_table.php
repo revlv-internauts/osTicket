@@ -16,16 +16,13 @@ return new class extends Migration
             $table->string('ticket_name')->unique();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->json('cc')->nullable();
-            $table->text('ticket_notice')->nullable();
             $table->string('ticket_source', 50);
             $table->foreignId('help_topic')->constrained('help_topics')->onDelete('cascade');
             $table->string('department', 100);
             $table->string('sla_plan', 100)->nullable();
-            $table->timestamp('due_date')->nullable();
             $table->timestamp('opened_at')->nullable();
             $table->timestamp('closed_at')->nullable();
             $table->foreignId('assigned_to')->nullable()->constrained('users')->onDelete('set null');
-            $table->text('canned_response')->nullable();
             $table->text('response')->nullable();
             $table->string('status', 50)->default('Open');
             $table->string('priority', 50)->nullable();
