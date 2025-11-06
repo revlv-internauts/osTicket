@@ -51,6 +51,7 @@ interface Ticket {
     sla_plan?: string;
     due_date?: string;
     opened_at?: string;
+    closed_at?: string;
     assigned_to?: number;
     assigned_to_user?: User;
     canned_response?: string;
@@ -68,7 +69,7 @@ interface TicketProps {
     caption?: string;
 }
 
-type SortField = 'ticket_name' | 'user' | 'source' | 'assigned_to' | 'help_topic' | 'department' | 'priority' | 'status' | 'created_at';
+type SortField = 'ticket_name' | 'user' | 'assigned_to' | 'priority' | 'status' | 'opened_at' | 'closed_at';
 type SortDirection = 'asc' | 'desc' | null;
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -127,21 +128,9 @@ export default function TicketsTable({
                 aValue = a.user?.name?.toLowerCase() || '';
                 bValue = b.user?.name?.toLowerCase() || '';
                 break;
-            case 'source':
-                aValue = a.ticket_source?.toLowerCase() || '';
-                bValue = b.ticket_source?.toLowerCase() || '';
-                break;
             case 'assigned_to':
                 aValue = a.assigned_to_user?.name?.toLowerCase() || '';
                 bValue = b.assigned_to_user?.name?.toLowerCase() || '';
-                break;
-            case 'help_topic':
-                aValue = a.help_topic_relation?.name?.toLowerCase() || '';
-                bValue = b.help_topic_relation?.name?.toLowerCase() || '';
-                break;
-            case 'department':
-                aValue = a.department?.toLowerCase() || '';
-                bValue = b.department?.toLowerCase() || '';
                 break;
             case 'priority':
                 aValue = a.priority?.toLowerCase() || '';
@@ -151,9 +140,13 @@ export default function TicketsTable({
                 aValue = a.status?.toLowerCase() || '';
                 bValue = b.status?.toLowerCase() || '';
                 break;
-            case 'created_at':
-                aValue = new Date(a.created_at).getTime();
-                bValue = new Date(b.created_at).getTime();
+            case 'opened_at':
+                aValue = a.opened_at ? new Date(a.opened_at).getTime() : 0;
+                bValue = b.opened_at ? new Date(b.opened_at).getTime() : 0;
+                break;
+            case 'closed_at':
+                aValue = a.closed_at ? new Date(a.closed_at).getTime() : 0;
+                bValue = b.closed_at ? new Date(b.closed_at).getTime() : 0;
                 break;
             default:
                 return 0;
@@ -191,7 +184,7 @@ export default function TicketsTable({
         return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />;
     };
 
-    const colSpan = 8 + (showUserId ? 1 : 0) + (showAssignedTo ? 1 : 0);
+    const colSpan = 6 + (showUserId ? 1 : 0) + (showAssignedTo ? 1 : 0);
 
     const handleRowClick = (ticket: Ticket) => {
         setSelectedTicket(ticket);
@@ -250,16 +243,6 @@ export default function TicketsTable({
                                     </Button>
                                 </TableHead>
                             )}
-                            <TableHead>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() => handleSort('source')}
-                                    className="h-8 px-2 hover:bg-transparent"
-                                >
-                                    Source
-                                    {getSortIcon('source')}
-                                </Button>
-                            </TableHead>
                             {showAssignedTo && (
                                 <TableHead>
                                     <Button
@@ -272,26 +255,6 @@ export default function TicketsTable({
                                     </Button>
                                 </TableHead>
                             )}
-                            <TableHead>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() => handleSort('help_topic')}
-                                    className="h-8 px-2 hover:bg-transparent"
-                                >
-                                    Help Topic
-                                    {getSortIcon('help_topic')}
-                                </Button>
-                            </TableHead>
-                            <TableHead>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() => handleSort('department')}
-                                    className="h-8 px-2 hover:bg-transparent"
-                                >
-                                    Department
-                                    {getSortIcon('department')}
-                                </Button>
-                            </TableHead>
                             <TableHead>
                                 <Button
                                     variant="ghost"
@@ -315,11 +278,21 @@ export default function TicketsTable({
                             <TableHead>
                                 <Button
                                     variant="ghost"
-                                    onClick={() => handleSort('created_at')}
+                                    onClick={() => handleSort('opened_at')}
                                     className="h-8 px-2 hover:bg-transparent"
                                 >
-                                    Created At
-                                    {getSortIcon('created_at')}
+                                    Opened At
+                                    {getSortIcon('opened_at')}
+                                </Button>
+                            </TableHead>
+                            <TableHead>
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => handleSort('closed_at')}
+                                    className="h-8 px-2 hover:bg-transparent"
+                                >
+                                    Closed At
+                                    {getSortIcon('closed_at')}
                                 </Button>
                             </TableHead>
                         </TableRow>
@@ -334,16 +307,12 @@ export default function TicketsTable({
                                 >
                                     <TableCell>{ticket.ticket_name || '-'}</TableCell>
                                     {showUserId && <TableCell>{ticket.user?.name || '-'}</TableCell>}
-                                    <TableCell>{ticket.ticket_source || '-'}</TableCell>
                                     {showAssignedTo && <TableCell>{ticket.assigned_to_user?.name || '-'}</TableCell>}
-                                    <TableCell>{ticket.help_topic_relation?.name || '-'}</TableCell>
-                                    <TableCell>{ticket.department || '-'}</TableCell>
                                     <TableCell>
                                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                                             ticket.priority === 'Low' ? 'bg-green-100 text-green-800' :
                                             ticket.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
                                             ticket.priority === 'High' ? 'bg-red-100 text-red-800' :
-                                            ticket.priority === 'Critical' ? 'bg-purple-100 text-purple-800' :
                                             'bg-blue-100 text-blue-800'
                                         }`}>
                                             {ticket.priority || 'Unknown'}
@@ -352,13 +321,14 @@ export default function TicketsTable({
                                     <TableCell>
                                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                                             ticket.status === 'Open' ? 'bg-green-100 text-green-800' :
-                                            ticket.status === 'Closed' ? 'bg-gray-100 text-gray-800' :
+                                            ticket.status === 'Closed' ? 'bg-red-100 text-red-800' :
                                             'bg-blue-100 text-blue-800'
                                         }`}>
                                             {ticket.status || 'Unknown'}
                                         </span>
                                     </TableCell>
-                                    <TableCell>{formatDate(ticket.created_at)}</TableCell>
+                                    <TableCell>{formatDate(ticket.opened_at ?? '') || '-'}</TableCell>
+                                    <TableCell>{formatDate(ticket.closed_at ?? '') || '-'}</TableCell>
                                 </TableRow>
                             ))
                         ) : (
@@ -455,13 +425,9 @@ export default function TicketsTable({
                                     <p className="text-base">{formatDate(selectedTicket.opened_at ?? '') || '-'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Created At</p>
-                                    <p className="text-base">{formatDate(selectedTicket.created_at)}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Last Updated</p>
-                                    <p className="text-base">{formatDate(selectedTicket.updated_at)}</p>
-                                </div>
+                                    <p className="text-sm font-medium text-muted-foreground">Closed At</p>
+                                    <p className="text-base">{formatDate(selectedTicket.closed_at ?? '') || '-'}</p>
+                                </div>  
                             </div>
 
                             <Separator />

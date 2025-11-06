@@ -65,7 +65,7 @@ const defaultSlaOptions = [
     "DICT-MIMAROPA-PRVNET (18 hours - Active)",
     "PIALEOS 3 SLA (18 hours - Active)"
 ];
-const defaultPriorityOptions = ["Low", "Medium", "High", "Critical"];
+const defaultPriorityOptions = ["Low", "Medium", "High"];
 
 const TicketCreate: React.FC<Props> = ({
     sourceOptions = defaultSourceOptions,
