@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Upload, X, Image as ImageIcon, CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle, Bold, Italic, List, ListOrdered, Heading1, Heading2, Heading3, Code, Quote, Underline as UnderlineIcon, Image as ImageIcon, Paperclip } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { router } from "@inertiajs/react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Placeholder from '@tiptap/extension-placeholder';
+import Underline from '@tiptap/extension-underline';
+import TiptapImage from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
 
 type TicketFormData = {
     response?: string | null;
@@ -26,7 +30,9 @@ type TicketData = {
     department: string;
     sla_plan?: string | null;
     opened_at?: string | null;
+    opened_by?: number | null;
     closed_at?: string | null;
+    closed_by?: number | null;
     assigned_to?: number | null;
     response?: string | null;
     status?: string | null;
@@ -34,6 +40,8 @@ type TicketData = {
     created_at: string;
     updated_at: string;
     user?: { id: number; name: string };
+    opened_by_user?: { id: number; name: string };
+    closed_by_user?: { id: number; name: string };
     cc_emails?: Array<{ id: number; email_address: string; name?: string }>;
     help_topic_relation?: { id: number; name: string };
     assigned_to_user?: { id: number; name: string };
@@ -56,42 +64,98 @@ const TicketEdit: React.FC<Props> = ({
         images: [] as File[],
     });
 
-    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [processing, setProcessing] = useState(false);
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
+    const isTicketClosed = ticket.status === 'Closed';
+
+    // Tiptap editor for response editing
+    const editor = useEditor({
+        extensions: [
+            StarterKit,
+            Placeholder.configure({
+                placeholder: 'Add your detailed response or notes here...',
+            }),
+            Underline,
+            TiptapImage.configure({
+                inline: true,
+                allowBase64: true,
+            }),
+            Link.configure({
+                openOnClick: false,
+            }),
+        ],
+        content: data.response || '',
+        editable: !isTicketClosed,
+        editorProps: {
+            attributes: {
+                class: 'prose prose-sm max-w-none focus:outline-none min-h-[150px] p-4',
+            },
+        },
+        onUpdate: ({ editor }) => {
+            setData(prev => ({ ...prev, response: editor.getHTML() }));
+        },
+    });
+
+    // Update editor editability when ticket status changes
     useEffect(() => {
-        return () => {
-            imagePreviews.forEach(url => URL.revokeObjectURL(url));
+        if (editor) {
+            editor.setEditable(!isTicketClosed);
+        }
+    }, [isTicketClosed, editor]);
+
+    // Handle image upload to editor
+    const handleEditorImageUpload = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.multiple = true;
+        
+        input.onchange = async (e) => {
+            const files = (e.target as HTMLInputElement).files;
+            if (!files) return;
+
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const base64 = e.target?.result as string;
+                    editor?.chain().focus().setImage({ src: base64 }).run();
+                };
+                reader.readAsDataURL(file);
+
+                // Also add to images array for upload
+                const currentImages = data.images || [];
+                setData(prev => ({ ...prev, images: [...currentImages, file] }));
+            });
         };
-    }, [imagePreviews]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const { value } = e.target;
-        setData(prev => ({ ...prev, response: value }));
+        input.click();
     };
 
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files) return;
+    // Handle file attachment to editor
+    const handleEditorFileUpload = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '*/*';
+        input.multiple = true;
+        
+        input.onchange = async (e) => {
+            const files = (e.target as HTMLInputElement).files;
+            if (!files) return;
 
-        const newFiles = Array.from(files);
-        const currentImages = data.images || [];
-        const updatedImages = [...currentImages, ...newFiles];
+            Array.from(files).forEach(file => {
+                // Add file as a link in the editor
+                const fileName = file.name;
+                const fileSize = (file.size / 1024).toFixed(2) + ' KB';
+                editor?.chain().focus().insertContent(`<p>📎 <a href="#">${fileName}</a> (${fileSize})</p>`).run();
 
-        setData(prev => ({ ...prev, images: updatedImages }));
+                // Add to images array for upload
+                const currentImages = data.images || [];
+                setData(prev => ({ ...prev, images: [...currentImages, file] }));
+            });
+        };
 
-        const newPreviews = newFiles.map(file => URL.createObjectURL(file));
-        setImagePreviews(prev => [...prev, ...newPreviews]);
-    };
-
-    const removeImage = (index: number) => {
-        const currentImages = data.images || [];
-        const updatedImages = currentImages.filter((_, i) => i !== index);
-        setData(prev => ({ ...prev, images: updatedImages }));
-
-        URL.revokeObjectURL(imagePreviews[index]);
-        setImagePreviews(prev => prev.filter((_, i) => i !== index));
+        input.click();
     };
 
     const handleCloseTicket = () => {
@@ -111,7 +175,6 @@ const TicketEdit: React.FC<Props> = ({
             onSuccess: () => {
                 setProcessing(false);
                 setData(prev => ({ ...prev, images: [] }));
-                setImagePreviews([]);
                 toast.success("Ticket closed successfully!");
 
                 if (onSuccess) {
@@ -150,7 +213,6 @@ const TicketEdit: React.FC<Props> = ({
             onSuccess: () => {
                 setProcessing(false);
                 setData(prev => ({ ...prev, images: [] }));
-                setImagePreviews([]);
                 toast.success("Ticket reopened successfully!");
 
                 if (onSuccess) {
@@ -190,7 +252,6 @@ const TicketEdit: React.FC<Props> = ({
             onSuccess: () => {
                 setProcessing(false);
                 setData(prev => ({ ...prev, images: [] }));
-                setImagePreviews([]);
                 toast.success("Ticket updated successfully!");
 
                 if (onSuccess) {
@@ -211,8 +272,6 @@ const TicketEdit: React.FC<Props> = ({
             }
         });
     };
-
-    const isTicketClosed = ticket.status === 'Closed';
 
     return (
         <Card className="w-full">
@@ -310,6 +369,14 @@ const TicketEdit: React.FC<Props> = ({
                             </div>
                         </div>
 
+                        {/* Opened By - Read Only */}
+                        <div className="space-y-2">
+                            <Label>Opened By</Label>
+                            <div className="p-2 bg-muted rounded-md">
+                                <span>{ticket.opened_by_user?.name || 'N/A'}</span>
+                            </div>
+                        </div>
+
                         {/* Closed At - Read Only */}
                         {ticket.closed_at && (
                             <div className="space-y-2">
@@ -318,6 +385,16 @@ const TicketEdit: React.FC<Props> = ({
                                     <span>
                                         {format(parseISO(ticket.closed_at), "PPP p")}
                                     </span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Closed By - Read Only */}
+                        {ticket.closed_by_user && (
+                            <div className="space-y-2">
+                                <Label>Closed By</Label>
+                                <div className="p-2 bg-muted rounded-md">
+                                    <span>{ticket.closed_by_user.name}</span>
                                 </div>
                             </div>
                         )}
@@ -339,98 +416,223 @@ const TicketEdit: React.FC<Props> = ({
                         </div>
                     </div>
 
-                    {/* Response - Editable */}
+                    {/* Response - Tiptap Editor */}
                     <div className="space-y-2">
-                        <Label htmlFor="response">Add Response</Label>
-                        <Textarea
-                            id="response"
-                            name="response"
-                            value={data.response || ""}
-                            onChange={handleChange}
-                            className="min-h-[120px]"
-                            placeholder="Add your response or notes here..."
-                            disabled={isTicketClosed}
-                        />
+                        <Label htmlFor="response">Add/Edit Response</Label>
+                        
+                        {/* Toolbar */}
+                        {!isTicketClosed && (
+                            <div className="border rounded-t-lg bg-muted/50 p-2 flex flex-wrap gap-1">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => editor?.chain().focus().toggleBold().run()}
+                                    className={editor?.isActive('bold') ? 'bg-muted' : ''}
+                                >
+                                    <Bold className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => editor?.chain().focus().toggleItalic().run()}
+                                    className={editor?.isActive('italic') ? 'bg-muted' : ''}
+                                >
+                                    <Italic className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => editor?.chain().focus().toggleUnderline().run()}
+                                    className={editor?.isActive('underline') ? 'bg-muted' : ''}
+                                >
+                                    <UnderlineIcon className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
+                                    className={editor?.isActive('heading', { level: 1 }) ? 'bg-muted' : ''}
+                                >
+                                    <Heading1 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+                                    className={editor?.isActive('heading', { level: 2 }) ? 'bg-muted' : ''}
+                                >
+                                    <Heading2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
+                                    className={editor?.isActive('heading', { level: 3 }) ? 'bg-muted' : ''}
+                                >
+                                    <Heading3 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                                    className={editor?.isActive('bulletList') ? 'bg-muted' : ''}
+                                >
+                                    <List className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+                                    className={editor?.isActive('orderedList') ? 'bg-muted' : ''}
+                                >
+                                    <ListOrdered className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
+                                    className={editor?.isActive('codeBlock') ? 'bg-muted' : ''}
+                                >
+                                    <Code className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+                                    className={editor?.isActive('blockquote') ? 'bg-muted' : ''}
+                                >
+                                    <Quote className="h-4 w-4" />
+                                </Button>
+                                <div className="border-l mx-1" />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleEditorImageUpload}
+                                >
+                                    <ImageIcon className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleEditorFileUpload}
+                                >
+                                    <Paperclip className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        )}
+
+                        {/* Editor */}
+                        <div className={`border ${!isTicketClosed ? 'rounded-b-lg' : 'rounded-lg'} bg-background`}>
+                            <style>{`
+                                .ProseMirror {
+                                    outline: none;
+                                }
+                                .ProseMirror p {
+                                    margin-bottom: 1em;
+                                }
+                                .ProseMirror p:last-child {
+                                    margin-bottom: 0;
+                                }
+                                .ProseMirror h1 {
+                                    font-size: 2em;
+                                    font-weight: bold;
+                                    margin-bottom: 0.5em;
+                                }
+                                .ProseMirror h2 {
+                                    font-size: 1.5em;
+                                    font-weight: bold;
+                                    margin-bottom: 0.5em;
+                                }
+                                .ProseMirror h3 {
+                                    font-size: 1.25em;
+                                    font-weight: bold;
+                                    margin-bottom: 0.5em;
+                                }
+                                .ProseMirror ul, .ProseMirror ol {
+                                    padding-left: 2em;
+                                    margin-bottom: 1em;
+                                }
+                                .ProseMirror li {
+                                    margin-bottom: 0.25em;
+                                }
+                                .ProseMirror strong {
+                                    font-weight: bold;
+                                }
+                                .ProseMirror em {
+                                    font-style: italic;
+                                }
+                                .ProseMirror u {
+                                    text-decoration: underline;
+                                }
+                                .ProseMirror code {
+                                    background-color: rgba(0, 0, 0, 0.05);
+                                    padding: 0.2em 0.4em;
+                                    border-radius: 3px;
+                                    font-family: monospace;
+                                }
+                                .ProseMirror pre {
+                                    background-color: rgba(0, 0, 0, 0.05);
+                                    padding: 1em;
+                                    border-radius: 5px;
+                                    overflow-x: auto;
+                                    margin-bottom: 1em;
+                                }
+                                .ProseMirror pre code {
+                                    background: none;
+                                    padding: 0;
+                                }
+                                .ProseMirror blockquote {
+                                    border-left: 3px solid #ccc;
+                                    padding-left: 1em;
+                                    margin-left: 0;
+                                    margin-bottom: 1em;
+                                    color: #666;
+                                }
+                                .ProseMirror img {
+                                    max-width: 100%;
+                                    height: auto;
+                                    border-radius: 5px;
+                                    margin: 1em 0;
+                                }
+                                .ProseMirror a {
+                                    color: #3b82f6;
+                                    text-decoration: underline;
+                                    cursor: pointer;
+                                }
+                                .ProseMirror a:hover {
+                                    color: #2563eb;
+                                }
+                                .ProseMirror p.is-editor-empty:first-child::before {
+                                    color: #adb5bd;
+                                    content: attr(data-placeholder);
+                                    float: left;
+                                    height: 0;
+                                    pointer-events: none;
+                                }
+                            `}</style>
+                            <EditorContent editor={editor} />
+                        </div>
                         {errors.response && (
                             <p className="text-xs text-red-500">{errors.response}</p>
                         )}
+                        {data.images && data.images.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                                {data.images.length} file(s) attached
+                            </p>
+                        )}
                     </div>
-
-                    {/* Image Upload Section - Editable */}
-                    {!isTicketClosed && (
-                        <div className="space-y-2">
-                            <Label htmlFor="images">Attach New Images</Label>
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-2">
-                                    <Input
-                                        id="images"
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        onChange={handleImageChange}
-                                        className="hidden"
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => document.getElementById('images')?.click()}
-                                        className="w-full sm:w-auto"
-                                    >
-                                        <Upload className="h-4 w-4 mr-2" />
-                                        Upload Images
-                                    </Button>
-                                    <p className="text-xs text-muted-foreground">
-                                        {data.images && data.images.length > 0
-                                            ? `${data.images.length} image(s) selected`
-                                            : 'No new images selected'}
-                                    </p>
-                                </div>
-
-                                {imagePreviews.length > 0 && (
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                        {imagePreviews.map((preview, index) => (
-                                            <div key={index} className="relative group">
-                                                <div className="aspect-square rounded-lg border overflow-hidden bg-muted">
-                                                    <img
-                                                        src={preview}
-                                                        alt={`Preview ${index + 1}`}
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                </div>
-                                                <Button
-                                                    type="button"
-                                                    variant="destructive"
-                                                    size="icon"
-                                                    className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    onClick={() => removeImage(index)}
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </Button>
-                                                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center truncate">
-                                                    {data.images?.[index]?.name}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {imagePreviews.length === 0 && (
-                                    <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                                        <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                                        <p className="text-sm text-muted-foreground">
-                                            No new images attached yet
-                                        </p>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            Click "Upload Images" to add screenshots or photos
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                            {errors.images && (
-                                <p className="text-xs text-red-500">{errors.images}</p>
-                            )}
-                        </div>
-                    )}
                 </form>
             </CardContent>
             <CardFooter className="flex justify-between">

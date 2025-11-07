@@ -8,6 +8,7 @@ use App\Models\Email;
 use App\Models\HelpTopic;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Carbon\Carbon;
 
@@ -18,14 +19,28 @@ class TicketController extends Controller
      */
     public function index()
     {
-        $allTickets = Ticket::with(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails'])
-                           ->orderBy('created_at', 'desc')
-                           ->get();
+        $allTickets = Ticket::with([
+            'user', 
+            'assignedToUser', 
+            'helpTopicRelation', 
+            'ccEmails',
+            'openedByUser',
+            'closedByUser'
+        ])
+        ->orderBy('created_at', 'desc')
+        ->get();
        
-        $myTickets = Ticket::with(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails'])
-                          ->where('user_id', Auth::id())
-                          ->orderBy('created_at', 'desc')
-                          ->get();
+        $myTickets = Ticket::with([
+            'user', 
+            'assignedToUser', 
+            'helpTopicRelation', 
+            'ccEmails',
+            'openedByUser',
+            'closedByUser'
+        ])
+        ->where('user_id', Auth::id())
+        ->orderBy('created_at', 'desc')
+        ->get();
         
         $users = User::select('id', 'name')->get();
         $emails = Email::select('id', 'email_address', 'name')->get();
@@ -116,6 +131,40 @@ class TicketController extends Controller
         }
 
         $validated['ticket_name'] = $ticketName;
+        $validated['opened_by'] = Auth::id();
+        
+        $processedResponse = $validated['response'];
+        $imagePaths = [];
+        
+        if (!empty($processedResponse)) {
+            preg_match_all('/<img[^>]+src="data:image\/([^;]+);base64,([^"]+)"[^>]*>/i', $processedResponse, $matches);
+            
+            foreach ($matches[0] as $index => $fullMatch) {
+                $imageType = $matches[1][$index];
+                $base64Data = $matches[2][$index];
+                
+                $imageData = base64_decode($base64Data);
+                $fileName = 'ticket-' . uniqid() . '.' . $imageType;
+                $path = 'ticket-images/' . $fileName;
+                
+                Storage::disk('public')->put($path, $imageData);
+                $imagePaths[] = $path;
+
+                $url = asset('storage/' . $path);
+                $processedResponse = str_replace($fullMatch, '<img src="' . $url . '" alt="Ticket Image" />', $processedResponse);
+            }
+        }
+        
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('ticket-images', 'public');
+                $imagePaths[] = $path;
+            }
+        }
+        
+        $validated['response'] = $processedResponse;
+        $validated['image_paths'] = !empty($imagePaths) ? json_encode($imagePaths) : null;
+        
         $ccEmails = $validated['cc'] ?? [];
         unset($validated['cc']);
         unset($validated['images']);
@@ -124,12 +173,6 @@ class TicketController extends Controller
 
         if (!empty($ccEmails)) {
             $ticket->ccEmails()->attach($ccEmails);
-        }
-
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                $path = $image->store('ticket-images', 'public');
-            }
         }
 
         return redirect()->route('tickets.index')
@@ -141,7 +184,14 @@ class TicketController extends Controller
      */
     public function show(Ticket $ticket)
     {
-        $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails']);
+        $ticket->load([
+            'user', 
+            'assignedToUser', 
+            'helpTopicRelation', 
+            'ccEmails',
+            'openedByUser',
+            'closedByUser'
+        ]);
         
         return Inertia::render('Tickets/Show', [
             'ticket' => $ticket
@@ -153,7 +203,14 @@ class TicketController extends Controller
      */
     public function edit(Ticket $ticket)
     {
-        $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails']);
+        $ticket->load([
+            'user', 
+            'assignedToUser', 
+            'helpTopicRelation', 
+            'ccEmails',
+            'openedByUser',
+            'closedByUser'
+        ]);
 
         return Inertia::render('Tickets/Edit', [
             'ticket' => $ticket,
@@ -175,7 +232,33 @@ class TicketController extends Controller
         $updateData = [];
 
         if (isset($validated['response'])) {
-            $updateData['response'] = $validated['response'];
+            // Process response: extract base64 images and convert to file URLs
+            $processedResponse = $validated['response'];
+            $imagePaths = json_decode($ticket->image_paths ?? '[]', true);
+            
+            // Extract base64 images from HTML
+            preg_match_all('/<img[^>]+src="data:image\/([^;]+);base64,([^"]+)"[^>]*>/i', $processedResponse, $matches);
+            
+            foreach ($matches[0] as $index => $fullMatch) {
+                $imageType = $matches[1][$index];
+                $base64Data = $matches[2][$index];
+                
+                // Decode base64 and save to storage
+                $imageData = base64_decode($base64Data);
+                $fileName = 'ticket-' . uniqid() . '.' . $imageType;
+                $path = 'ticket-images/' . $fileName;
+                
+                Storage::disk('public')->put($path, $imageData);
+                $imagePaths[] = $path;
+                
+                // Generate proper URL
+                $url = asset('storage/' . $path);
+                $processedResponse = str_replace($fullMatch, '<img src="' . $url . '" alt="Ticket Image" />', $processedResponse);
+            }
+            
+            // Store processed response (with HTML for display)
+            $updateData['response'] = $processedResponse;
+            $updateData['image_paths'] = !empty($imagePaths) ? json_encode($imagePaths) : null;
         }
 
         if (isset($validated['status'])) {
@@ -183,21 +266,27 @@ class TicketController extends Controller
             
             if ($validated['status'] === 'Closed' && $ticket->status !== 'Closed') {
                 $updateData['closed_at'] = Carbon::now();
+                $updateData['closed_by'] = Auth::id();
             }
 
             if ($validated['status'] === 'Open' && $ticket->status === 'Closed') {
                 $updateData['closed_at'] = null;
+                $updateData['closed_by'] = null;
             }
+        }
+
+        // Handle uploaded images
+        if ($request->hasFile('images')) {
+            $imagePaths = json_decode($ticket->image_paths ?? '[]', true);
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('ticket-images', 'public');
+                $imagePaths[] = $path;
+            }
+            $updateData['image_paths'] = json_encode($imagePaths);
         }
 
         if (!empty($updateData)) {
             $ticket->update($updateData);
-        }
-
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                $path = $image->store('ticket-images', 'public'); 
-            }
         }
 
         return back()->with('success', 'Ticket updated successfully.');
@@ -208,6 +297,14 @@ class TicketController extends Controller
      */
     public function destroy(Ticket $ticket)
     {
+        // Delete associated images
+        if ($ticket->image_paths) {
+            $imagePaths = json_decode($ticket->image_paths, true);
+            foreach ($imagePaths as $path) {
+                Storage::disk('public')->delete($path);
+            }
+        }
+
         $ticket->delete();
 
         return redirect()->route('tickets.index')

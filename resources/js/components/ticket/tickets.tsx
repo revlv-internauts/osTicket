@@ -18,7 +18,13 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import TicketEdit from './edit'; 
+import TicketEdit from './edit';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Placeholder from '@tiptap/extension-placeholder';
+import Underline from '@tiptap/extension-underline';
+import TiptapImage from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
 
 interface User {
     id: number;
@@ -51,7 +57,11 @@ interface Ticket {
     sla_plan?: string;
     due_date?: string;
     opened_at?: string;
+    opened_by?: number;
+    opened_by_user?: User;
     closed_at?: string;
+    closed_by?: number;
+    closed_by_user?: User;
     assigned_to?: number;
     assigned_to_user?: User;
     canned_response?: string;
@@ -214,6 +224,38 @@ export default function TicketsTable({
         router.reload({ only: ['tickets'] });
     };
 
+    // Tiptap editor for response display (read-only)
+    const editor = useEditor({
+        extensions: [
+            StarterKit,
+            Placeholder.configure({
+                placeholder: 'No response provided',
+            }),
+            Underline,
+            TiptapImage.configure({
+                inline: true,
+                allowBase64: true,
+            }),
+            Link.configure({
+                openOnClick: false,
+            }),
+        ],
+        content: selectedTicket?.response || '<p>No response provided</p>',
+        editable: false,
+        editorProps: {
+            attributes: {
+                class: 'prose prose-sm max-w-none focus:outline-none min-h-[150px]',
+            },
+        },
+    }, [selectedTicket]);
+
+    // Update editor content when ticket changes
+    useEffect(() => {
+        if (editor && selectedTicket) {
+            editor.commands.setContent(selectedTicket.response || '<p>No response provided</p>');
+        }
+    }, [editor, selectedTicket]);
+
     return (
         <>
             <div className="border rounded-md">
@@ -344,25 +386,25 @@ export default function TicketsTable({
 
             {/* Ticket Details Dialog */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="w-[95vw] max-w-[1400px] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle className="text-2xl">Ticket Details</DialogTitle>
-                        <DialogDescription>
+                        <DialogTitle className="text-3xl font-bold">Ticket Details</DialogTitle>
+                        <DialogDescription className="text-base">
                             View complete information about this ticket
                         </DialogDescription>
                     </DialogHeader>
 
                     {selectedTicket && (
-                        <div className="space-y-6">
+                        <div className="space-y-8">
                             {/* Ticket Header Info */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-6">
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Ticket Name</p>
-                                    <p className="text-lg font-semibold">{selectedTicket.ticket_name}</p>
+                                    <p className="text-base font-medium text-muted-foreground mb-2">Ticket Name</p>
+                                    <p className="text-2xl font-bold">{selectedTicket.ticket_name}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Status</p>
-                                    <Badge className={`mt-1 ${
+                                    <p className="text-base font-medium text-muted-foreground mb-2">Status</p>
+                                    <Badge className={`mt-1 text-base px-4 py-2 ${
                                         selectedTicket.status === 'Open' ? 'bg-green-500' :
                                         selectedTicket.status === 'Closed' ? 'bg-gray-500' :
                                         'bg-blue-500'
@@ -374,82 +416,172 @@ export default function TicketsTable({
                             <Separator />
 
                             {/* Main Details */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-6">
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Submitted By</p>
-                                    <p className="text-base">{selectedTicket.user?.name || '-'}</p>
+                                    <p className="text-base font-medium text-muted-foreground mb-1">Submitted By</p>
+                                    <p className="text-lg">{selectedTicket.user?.name || '-'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Ticket Source</p>
-                                    <p className="text-base">{selectedTicket.ticket_source || '-'}</p>
+                                    <p className="text-base font-medium text-muted-foreground mb-1">Ticket Source</p>
+                                    <p className="text-lg">{selectedTicket.ticket_source || '-'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Help Topic</p>
-                                    <p className="text-base">{selectedTicket.help_topic_relation?.name || '-'}</p>
+                                    <p className="text-base font-medium text-muted-foreground mb-1">Help Topic</p>
+                                    <p className="text-lg">{selectedTicket.help_topic_relation?.name || '-'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Department</p>
-                                    <p className="text-base">{selectedTicket.department || '-'}</p>
+                                    <p className="text-base font-medium text-muted-foreground mb-1">Department</p>
+                                    <p className="text-lg">{selectedTicket.department || '-'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Priority</p>
-                                    <p className="text-base">{selectedTicket.priority || '-'}</p>
+                                    <p className="text-base font-medium text-muted-foreground mb-1">Priority</p>
+                                    <p className="text-lg">{selectedTicket.priority || '-'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Assigned To</p>
-                                    <p className="text-base">{selectedTicket.assigned_to_user?.name || '-'}</p>
+                                    <p className="text-base font-medium text-muted-foreground mb-1">Assigned To</p>
+                                    <p className="text-lg">{selectedTicket.assigned_to_user?.name || '-'}</p>
                                 </div>
                                 <div className="col-span-2">
-                                    <p className="text-sm font-medium text-muted-foreground mb-2">CC Emails</p>
+                                    <p className="text-base font-medium text-muted-foreground mb-2">CC Emails</p>
                                     {selectedTicket.cc_emails && selectedTicket.cc_emails.length > 0 ? (
                                         <div className="flex flex-wrap gap-2">
                                             {selectedTicket.cc_emails.map((email) => (
-                                                <Badge key={email.id} variant="secondary">
+                                                <Badge key={email.id} variant="secondary" className="text-sm px-3 py-1">
                                                     {email.email_address}
                                                     {email.name && ` (${email.name})`}
                                                 </Badge>
                                             ))}
                                         </div>
                                     ) : (
-                                        <p className="text-base text-muted-foreground">No CC emails</p>
+                                        <p className="text-lg text-muted-foreground">No CC emails</p>
                                     )}
                                 </div>
                             </div>
 
                             <Separator />
 
-                            {/* Dates */}
-                            <div className="grid grid-cols-2 gap-4">
+                            {/* Dates and Tracking */}
+                            <div className="grid grid-cols-2 gap-6">
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Opened At</p>
-                                    <p className="text-base">{formatDate(selectedTicket.opened_at ?? '') || '-'}</p>
+                                    <p className="text-base font-medium text-muted-foreground mb-1">Opened At</p>
+                                    <p className="text-lg">{formatDate(selectedTicket.opened_at ?? '') || '-'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Closed At</p>
-                                    <p className="text-base">{formatDate(selectedTicket.closed_at ?? '') || '-'}</p>
-                                </div>  
+                                    <p className="text-base font-medium text-muted-foreground mb-1">Opened By</p>
+                                    <p className="text-lg">{selectedTicket.opened_by_user?.name || '-'}</p>
+                                </div>
+                                {selectedTicket.closed_at && (
+                                    <>
+                                        <div>
+                                            <p className="text-base font-medium text-muted-foreground mb-1">Closed At</p>
+                                            <p className="text-lg">{formatDate(selectedTicket.closed_at ?? '') || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-base font-medium text-muted-foreground mb-1">Closed By</p>
+                                            <p className="text-lg">{selectedTicket.closed_by_user?.name || '-'}</p>
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             <Separator />
 
-                            {/* Response */}
+                            {/* Response with Tiptap Editor */}
                             <div>
-                                <p className="text-sm font-medium text-muted-foreground mb-2">Response</p>
-                                <div className="bg-muted p-4 rounded-md">
-                                    <p className="text-base whitespace-pre-wrap">
-                                        {selectedTicket.response || 'No response provided'}
-                                    </p>
+                                <p className="text-base font-medium text-muted-foreground mb-3">Response</p>
+                                <div className="bg-background border rounded-lg p-6">
+                                    <style>{`
+                                        .ProseMirror {
+                                            outline: none;
+                                        }
+                                        .ProseMirror p {
+                                            margin-bottom: 1em;
+                                        }
+                                        .ProseMirror p:last-child {
+                                            margin-bottom: 0;
+                                        }
+                                        .ProseMirror h1 {
+                                            font-size: 2em;
+                                            font-weight: bold;
+                                            margin-bottom: 0.5em;
+                                        }
+                                        .ProseMirror h2 {
+                                            font-size: 1.5em;
+                                            font-weight: bold;
+                                            margin-bottom: 0.5em;
+                                        }
+                                        .ProseMirror h3 {
+                                            font-size: 1.25em;
+                                            font-weight: bold;
+                                            margin-bottom: 0.5em;
+                                        }
+                                        .ProseMirror ul, .ProseMirror ol {
+                                            padding-left: 2em;
+                                            margin-bottom: 1em;
+                                        }
+                                        .ProseMirror li {
+                                            margin-bottom: 0.25em;
+                                        }
+                                        .ProseMirror strong {
+                                            font-weight: bold;
+                                        }
+                                        .ProseMirror em {
+                                            font-style: italic;
+                                        }
+                                        .ProseMirror u {
+                                            text-decoration: underline;
+                                        }
+                                        .ProseMirror code {
+                                            background-color: rgba(0, 0, 0, 0.05);
+                                            padding: 0.2em 0.4em;
+                                            border-radius: 3px;
+                                            font-family: monospace;
+                                        }
+                                        .ProseMirror pre {
+                                            background-color: rgba(0, 0, 0, 0.05);
+                                            padding: 1em;
+                                            border-radius: 5px;
+                                            overflow-x: auto;
+                                            margin-bottom: 1em;
+                                        }
+                                        .ProseMirror pre code {
+                                            background: none;
+                                            padding: 0;
+                                        }
+                                        .ProseMirror blockquote {
+                                            border-left: 3px solid #ccc;
+                                            padding-left: 1em;
+                                            margin-left: 0;
+                                            margin-bottom: 1em;
+                                            color: #666;
+                                        }
+                                        .ProseMirror img {
+                                            max-width: 100%;
+                                            height: auto;
+                                            border-radius: 5px;
+                                            margin: 1em 0;
+                                        }
+                                        .ProseMirror a {
+                                            color: #3b82f6;
+                                            text-decoration: underline;
+                                            cursor: pointer;
+                                        }
+                                        .ProseMirror a:hover {
+                                            color: #2563eb;
+                                        }
+                                    `}</style>
+                                    <EditorContent editor={editor} />
                                 </div>
                             </div>
                         </div>
                     )}
 
                     <DialogFooter className="flex gap-2">
-                        <Button variant="outline" onClick={handleCloseDialog}>
+                        <Button variant="outline" onClick={handleCloseDialog} className="text-base px-6 py-2">
                             Close
                         </Button>
-                        <Button onClick={handleEditFromDialog}>
-                            <Pencil className="h-4 w-4 mr-2" />
+                        <Button onClick={handleEditFromDialog} className="text-base px-6 py-2">
+                            <Pencil className="h-5 w-5 mr-2" />
                             Edit Ticket
                         </Button>
                     </DialogFooter>

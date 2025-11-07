@@ -10,8 +10,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { CalendarIcon, UserIcon, Plus, Upload, X, Image as ImageIcon, Clock } from "lucide-react";
+import { CalendarIcon, UserIcon, Plus, X, Clock, Bold, Italic, List, ListOrdered, Heading1, Heading2, Heading3, Code, Quote, Underline as UnderlineIcon, Image as ImageIcon, Paperclip } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import {
     Popover,
@@ -32,6 +31,12 @@ import { cn } from "@/lib/utils";
 import { usePage, useForm, router } from "@inertiajs/react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Placeholder from '@tiptap/extension-placeholder';
+import Underline from '@tiptap/extension-underline';
+import TiptapImage from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
 
 type Ticket = {
     user_id: number;
@@ -94,9 +99,9 @@ const TicketCreate: React.FC<Props> = ({
     }>({
         user_id: user?.id || 0,
         cc: [] as number[],
-        ticket_source: "",
+        ticket_source: "Email",
         help_topic: 0,
-        department: "",
+        department: "NOC",
         sla_plan: null,
         opened_at: null,
         assigned_to: null,
@@ -108,7 +113,6 @@ const TicketCreate: React.FC<Props> = ({
 
     const [emailDialogOpen, setEmailDialogOpen] = useState(false);
     const [helpTopicDialogOpen, setHelpTopicDialogOpen] = useState(false);
-    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [ccPopoverOpen, setCcPopoverOpen] = useState(false);
     const [date, setDate] = useState<Date | undefined>(undefined);
     const [time, setTime] = useState<string>("12:00");
@@ -123,25 +127,45 @@ const TicketCreate: React.FC<Props> = ({
         name: "",
     });
 
+    const editor = useEditor({
+        extensions: [
+            StarterKit,
+            Placeholder.configure({
+                placeholder: 'Write your detailed response or notes here...',
+            }),
+            Underline,
+            TiptapImage.configure({
+                inline: true,
+                allowBase64: true,
+            }),
+            Link.configure({
+                openOnClick: false,
+            }),
+        ],
+        content: data.response || '',
+        editorProps: {
+            attributes: {
+                class: 'prose prose-sm max-w-none focus:outline-none min-h-[150px] p-4',
+            },
+        },
+        onUpdate: ({ editor }) => {
+            setData('response', editor.getHTML());
+        },
+    });
+
     useEffect(() => {
         if (user?.id) {
             setData("user_id", user.id);
         }
     }, [user]);
 
-    useEffect(() => {
-        return () => {
-            imagePreviews.forEach(url => URL.revokeObjectURL(url));
-        };
-    }, [imagePreviews]);
-
     const resetForm = () => {
         setData({
             user_id: user?.id || 0,
             cc: [] as number[],
-            ticket_source: "",
+            ticket_source: "Email",
             help_topic: 0,
-            department: "",
+            department: "NOC",
             sla_plan: null as string | null,
             opened_at: null as string | null,
             assigned_to: null as number | null,
@@ -152,13 +176,8 @@ const TicketCreate: React.FC<Props> = ({
         });
         setDate(undefined);
         setTime("12:00");
-        setImagePreviews([]);
         setFormErrors({});
-    };
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setData(name as keyof Ticket, value);
+        editor?.commands.setContent('');
     };
 
     const handleSelectChange = (name: keyof Ticket, value: string | number) => {
@@ -186,27 +205,58 @@ const TicketCreate: React.FC<Props> = ({
         }
     };
 
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files) return;
+    // Handle image upload to editor
+    const handleEditorImageUpload = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.multiple = true;
+        
+        input.onchange = async (e) => {
+            const files = (e.target as HTMLInputElement).files;
+            if (!files) return;
 
-        const newFiles = Array.from(files);
-        const currentImages = data.images || [];
-        const updatedImages = [...currentImages, ...newFiles];
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const base64 = e.target?.result as string;
+                    editor?.chain().focus().setImage({ src: base64 }).run();
+                };
+                reader.readAsDataURL(file);
 
-        setData("images", updatedImages);
+                // Also add to images array for upload
+                const currentImages = data.images || [];
+                setData("images", [...currentImages, file]);
+            });
+        };
 
-        const newPreviews = newFiles.map(file => URL.createObjectURL(file));
-        setImagePreviews(prev => [...prev, ...newPreviews]);
+        input.click();
     };
 
-    const removeImage = (index: number) => {
-        const currentImages = data.images || [];
-        const updatedImages = currentImages.filter((_, i) => i !== index);
-        setData("images", updatedImages);
+    // Handle file attachment to editor
+    const handleEditorFileUpload = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '*/*';
+        input.multiple = true;
+        
+        input.onchange = async (e) => {
+            const files = (e.target as HTMLInputElement).files;
+            if (!files) return;
 
-        URL.revokeObjectURL(imagePreviews[index]);
-        setImagePreviews(prev => prev.filter((_, i) => i !== index));
+            Array.from(files).forEach(file => {
+                // Add file as a link in the editor
+                const fileName = file.name;
+                const fileSize = (file.size / 1024).toFixed(2) + ' KB';
+                editor?.chain().focus().insertContent(`<p>📎 <a href="#">${fileName}</a> (${fileSize})</p>`).run();
+
+                // Add to images array for upload
+                const currentImages = data.images || [];
+                setData("images", [...currentImages, file]);
+            });
+        };
+
+        input.click();
     };
 
     const handleCcEmailToggle = (emailId: number) => {
@@ -326,7 +376,7 @@ const TicketCreate: React.FC<Props> = ({
                         {/* User Information - Read Only */}
                         <div className="space-y-2">
                             <Label>Submitted By</Label>
-                            <div className="flex items-center p-2 bg-muted rounded-md">
+                            <div className="flex items-center p-2 bg-muted rounded-md mt-3">
                                 <UserIcon className="h-4 w-4 mr-2 text-muted-foreground" />
                                 <span>{user?.name || 'Loading user...'}</span>
                             </div>
@@ -747,93 +797,219 @@ const TicketCreate: React.FC<Props> = ({
                         </div>
                     </div>
 
-                    {/* Response - Full width */}
+                    {/* Response - Tiptap Editor */}
                     <div className="space-y-2">
                         <Label htmlFor="response">Response</Label>
-                        <Textarea
-                            id="response"
-                            name="response"
-                            value={data.response || ""}
-                            onChange={handleChange}
-                            className="min-h-[120px]"
-                            placeholder="Detailed response or notes"
-                        />
+                        
+                        {/* Toolbar */}
+                        <div className="border rounded-t-lg bg-muted/50 p-2 flex flex-wrap gap-1">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => editor?.chain().focus().toggleBold().run()}
+                                className={editor?.isActive('bold') ? 'bg-muted' : ''}
+                            >
+                                <Bold className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => editor?.chain().focus().toggleItalic().run()}
+                                className={editor?.isActive('italic') ? 'bg-muted' : ''}
+                            >
+                                <Italic className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => editor?.chain().focus().toggleUnderline().run()}
+                                className={editor?.isActive('underline') ? 'bg-muted' : ''}
+                            >
+                                <UnderlineIcon className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
+                                className={editor?.isActive('heading', { level: 1 }) ? 'bg-muted' : ''}
+                            >
+                                <Heading1 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+                                className={editor?.isActive('heading', { level: 2 }) ? 'bg-muted' : ''}
+                            >
+                                <Heading2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
+                                className={editor?.isActive('heading', { level: 3 }) ? 'bg-muted' : ''}
+                            >
+                                <Heading3 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                                className={editor?.isActive('bulletList') ? 'bg-muted' : ''}
+                            >
+                                <List className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+                                className={editor?.isActive('orderedList') ? 'bg-muted' : ''}
+                            >
+                                <ListOrdered className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
+                                className={editor?.isActive('codeBlock') ? 'bg-muted' : ''}
+                            >
+                                <Code className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+                                className={editor?.isActive('blockquote') ? 'bg-muted' : ''}
+                            >
+                                <Quote className="h-4 w-4" />
+                            </Button>
+                            <div className="border-l mx-1" />
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleEditorImageUpload}
+                            >
+                                <ImageIcon className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleEditorFileUpload}
+                            >
+                                <Paperclip className="h-4 w-4" />
+                            </Button>
+                        </div>
+
+                        {/* Editor */}
+                        <div className="border rounded-b-lg bg-background">
+                            <style>{`
+                                .ProseMirror {
+                                    outline: none;
+                                }
+                                .ProseMirror p {
+                                    margin-bottom: 1em;
+                                }
+                                .ProseMirror p:last-child {
+                                    margin-bottom: 0;
+                                }
+                                .ProseMirror h1 {
+                                    font-size: 2em;
+                                    font-weight: bold;
+                                    margin-bottom: 0.5em;
+                                }
+                                .ProseMirror h2 {
+                                    font-size: 1.5em;
+                                    font-weight: bold;
+                                    margin-bottom: 0.5em;
+                                }
+                                .ProseMirror h3 {
+                                    font-size: 1.25em;
+                                    font-weight: bold;
+                                    margin-bottom: 0.5em;
+                                }
+                                .ProseMirror ul, .ProseMirror ol {
+                                    padding-left: 2em;
+                                    margin-bottom: 1em;
+                                }
+                                .ProseMirror li {
+                                    margin-bottom: 0.25em;
+                                }
+                                .ProseMirror strong {
+                                    font-weight: bold;
+                                }
+                                .ProseMirror em {
+                                    font-style: italic;
+                                }
+                                .ProseMirror u {
+                                    text-decoration: underline;
+                                }
+                                .ProseMirror code {
+                                    background-color: rgba(0, 0, 0, 0.05);
+                                    padding: 0.2em 0.4em;
+                                    border-radius: 3px;
+                                    font-family: monospace;
+                                }
+                                .ProseMirror pre {
+                                    background-color: rgba(0, 0, 0, 0.05);
+                                    padding: 1em;
+                                    border-radius: 5px;
+                                    overflow-x: auto;
+                                    margin-bottom: 1em;
+                                }
+                                .ProseMirror pre code {
+                                    background: none;
+                                    padding: 0;
+                                }
+                                .ProseMirror blockquote {
+                                    border-left: 3px solid #ccc;
+                                    padding-left: 1em;
+                                    margin-left: 0;
+                                    margin-bottom: 1em;
+                                    color: #666;
+                                }
+                                .ProseMirror img {
+                                    max-width: 100%;
+                                    height: auto;
+                                    border-radius: 5px;
+                                    margin: 1em 0;
+                                }
+                                .ProseMirror a {
+                                    color: #3b82f6;
+                                    text-decoration: underline;
+                                    cursor: pointer;
+                                }
+                                .ProseMirror a:hover {
+                                    color: #2563eb;
+                                }
+                                .ProseMirror p.is-editor-empty:first-child::before {
+                                    color: #adb5bd;
+                                    content: attr(data-placeholder);
+                                    float: left;
+                                    height: 0;
+                                    pointer-events: none;
+                                }
+                            `}</style>
+                            <EditorContent editor={editor} />
+                        </div>
                         {errors.response && (
                             <p className="text-xs text-red-500">{errors.response}</p>
                         )}
-                    </div>
-
-                    {/* Image Upload Section */}
-                    <div className="space-y-2">
-                        <Label htmlFor="images">Attach Images</Label>
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2">
-                                <Input
-                                    id="images"
-                                    type="file"
-                                    accept="image/*"
-                                    multiple
-                                    onChange={handleImageChange}
-                                    className="hidden"
-                                />
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => document.getElementById('images')?.click()}
-                                    className="w-full sm:w-auto"
-                                >
-                                    <Upload className="h-4 w-4 mr-2" />
-                                    Upload Images
-                                </Button>
-                                <p className="text-xs text-muted-foreground">
-                                    {data.images && data.images.length > 0
-                                        ? `${data.images.length} image(s) selected`
-                                        : 'No images selected'}
-                                </p>
-                            </div>
-
-                            {imagePreviews.length > 0 && (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                    {imagePreviews.map((preview, index) => (
-                                        <div key={index} className="relative group">
-                                            <div className="aspect-square rounded-lg border overflow-hidden bg-muted">
-                                                <img
-                                                    src={preview}
-                                                    alt={`Preview ${index + 1}`}
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            </div>
-                                            <Button
-                                                type="button"
-                                                variant="destructive"
-                                                size="icon"
-                                                className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                onClick={() => removeImage(index)}
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </Button>
-                                            <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center truncate">
-                                                {data.images?.[index]?.name}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {imagePreviews.length === 0 && (
-                                <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                                    <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                                    <p className="text-sm text-muted-foreground">
-                                        No images attached yet
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        Click "Upload Images" to add screenshots or photos
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                        {errors.images && (
-                            <p className="text-xs text-red-500">{errors.images}</p>
+                        {data.images && data.images.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                                {data.images.length} file(s) attached
+                            </p>
                         )}
                     </div>
                 </form>

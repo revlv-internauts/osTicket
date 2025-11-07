@@ -21,20 +21,24 @@ return new class extends Migration
             $table->string('department', 100);
             $table->string('sla_plan', 100)->nullable();
             $table->timestamp('opened_at')->nullable();
+            $table->foreignId('opened_by')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamp('closed_at')->nullable();
+            $table->foreignId('closed_by')->nullable()->constrained('users')->onDelete('set null');
             $table->foreignId('assigned_to')->nullable()->constrained('users')->onDelete('set null');
             $table->text('response')->nullable();
+            $table->json('image_paths')->nullable();
             $table->string('status', 50)->default('Open');
             $table->string('priority', 50)->nullable();
             $table->timestamps();
 
-            
             $table->index('user_id');
             $table->index('assigned_to');
             $table->index('help_topic');
             $table->index('status');
             $table->index('priority');
             $table->index('opened_at');
+            $table->index('opened_by');
+            $table->index('closed_by');
         });
     }
 

@@ -3,7 +3,6 @@ import AppLayout from '@/layouts/app-layout';
 import { dashboard, ticket, list } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import StatsCard from "@/components/StatsCard";
 import {
   Table,
   TableBody,
@@ -33,7 +32,7 @@ interface ListProps {
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'List',
+        title: 'Users List',
         href: list().url,
     },
 ];

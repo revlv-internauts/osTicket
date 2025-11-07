@@ -18,17 +18,17 @@ class Ticket extends Model
         'ticket_name',
         'user_id',
         'cc',
-        'ticket_notice',
         'ticket_source',
         'help_topic',
         'department',
         'sla_plan',
-        'due_date',
         'opened_at',
+        'opened_by',
         'closed_at',
+        'closed_by',
         'assigned_to',
-        'canned_response',
         'response',
+        'image_paths',
         'status',
         'priority',
     ];
@@ -82,5 +82,21 @@ class Ticket extends Model
     public function ccEmail()
     {
         return $this->belongsTo(Email::class, 'cc');
+    }
+
+    /**
+     * Get the user that opened the ticket.
+     */
+    public function openedByUser()
+    {
+        return $this->belongsTo(User::class, 'opened_by');
+    }
+
+    /**
+     * Get the user that closed the ticket.
+     */
+    public function closedByUser()
+    {
+        return $this->belongsTo(User::class, 'closed_by');
     }
 }
