@@ -6,6 +6,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Models\Email;
 use App\Models\HelpTopic;
+use App\Services\MailtrapService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -175,6 +176,28 @@ class TicketController extends Controller
             $ticket->ccEmails()->attach($ccEmails);
         }
 
+        $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails']);
+
+        try {
+            $mailtrapService = new MailtrapService();
+            
+            if ($ticket->user && $ticket->user->email) {
+                $mailtrapService->sendTicketCreated($ticket, $ticket->user->email);
+            }
+
+            if ($ticket->assigned_to && $ticket->assignedToUser && $ticket->assignedToUser->email) {
+                $mailtrapService->sendTicketCreated($ticket, $ticket->assignedToUser->email);
+            }
+
+            if ($ticket->ccEmails && $ticket->ccEmails->count() > 0) {
+                foreach ($ticket->ccEmails as $ccEmail) {
+                    $mailtrapService->sendTicketCreated($ticket, $ccEmail->email_address);
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to send ticket creation email: ' . $e->getMessage());
+        }
+
         return redirect()->route('tickets.index')
             ->with('success', 'Ticket created successfully with ID: ' . $ticketName);
     }
@@ -230,20 +253,18 @@ class TicketController extends Controller
         ]);
 
         $updateData = [];
+        $changes = [];
 
         if (isset($validated['response'])) {
-            // Process response: extract base64 images and convert to file URLs
             $processedResponse = $validated['response'];
             $imagePaths = json_decode($ticket->image_paths ?? '[]', true);
             
-            // Extract base64 images from HTML
             preg_match_all('/<img[^>]+src="data:image\/([^;]+);base64,([^"]+)"[^>]*>/i', $processedResponse, $matches);
             
             foreach ($matches[0] as $index => $fullMatch) {
                 $imageType = $matches[1][$index];
                 $base64Data = $matches[2][$index];
                 
-                // Decode base64 and save to storage
                 $imageData = base64_decode($base64Data);
                 $fileName = 'ticket-' . uniqid() . '.' . $imageType;
                 $path = 'ticket-images/' . $fileName;
@@ -251,31 +272,33 @@ class TicketController extends Controller
                 Storage::disk('public')->put($path, $imageData);
                 $imagePaths[] = $path;
                 
-                // Generate proper URL
                 $url = asset('storage/' . $path);
                 $processedResponse = str_replace($fullMatch, '<img src="' . $url . '" alt="Ticket Image" />', $processedResponse);
             }
             
-            // Store processed response (with HTML for display)
             $updateData['response'] = $processedResponse;
             $updateData['image_paths'] = !empty($imagePaths) ? json_encode($imagePaths) : null;
+            $changes['Response'] = 'Updated';
         }
 
+        $wasClosing = false;
         if (isset($validated['status'])) {
             $updateData['status'] = $validated['status'];
             
             if ($validated['status'] === 'Closed' && $ticket->status !== 'Closed') {
                 $updateData['closed_at'] = Carbon::now();
                 $updateData['closed_by'] = Auth::id();
+                $changes['Status'] = 'Closed';
+                $wasClosing = true;
             }
 
             if ($validated['status'] === 'Open' && $ticket->status === 'Closed') {
                 $updateData['closed_at'] = null;
                 $updateData['closed_by'] = null;
+                $changes['Status'] = 'Reopened';
             }
         }
 
-        // Handle uploaded images
         if ($request->hasFile('images')) {
             $imagePaths = json_decode($ticket->image_paths ?? '[]', true);
             foreach ($request->file('images') as $image) {
@@ -283,10 +306,45 @@ class TicketController extends Controller
                 $imagePaths[] = $path;
             }
             $updateData['image_paths'] = json_encode($imagePaths);
+            $changes['Attachments'] = 'Added new files';
         }
 
         if (!empty($updateData)) {
             $ticket->update($updateData);
+            $ticket->refresh();
+            $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails', 'closedByUser']);
+
+            try {
+                $mailtrapService = new MailtrapService();
+                
+                if ($wasClosing) {
+                    if ($ticket->user && $ticket->user->email) {
+                        $mailtrapService->sendTicketClosed($ticket, $ticket->user->email);
+                    }
+                    if ($ticket->assigned_to && $ticket->assignedToUser && $ticket->assignedToUser->email) {
+                        $mailtrapService->sendTicketClosed($ticket, $ticket->assignedToUser->email);
+                    }
+                    if ($ticket->ccEmails && $ticket->ccEmails->count() > 0) {
+                        foreach ($ticket->ccEmails as $ccEmail) {
+                            $mailtrapService->sendTicketClosed($ticket, $ccEmail->email_address);
+                        }
+                    }
+                } else {
+                    if ($ticket->user && $ticket->user->email) {
+                        $mailtrapService->sendTicketUpdated($ticket, $ticket->user->email, $changes);
+                    }
+                    if ($ticket->assigned_to && $ticket->assignedToUser && $ticket->assignedToUser->email) {
+                        $mailtrapService->sendTicketUpdated($ticket, $ticket->assignedToUser->email, $changes);
+                    }
+                    if ($ticket->ccEmails && $ticket->ccEmails->count() > 0) {
+                        foreach ($ticket->ccEmails as $ccEmail) {
+                            $mailtrapService->sendTicketUpdated($ticket, $ccEmail->email_address, $changes);
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('Failed to send ticket update email: ' . $e->getMessage());
+            }
         }
 
         return back()->with('success', 'Ticket updated successfully.');
@@ -297,7 +355,6 @@ class TicketController extends Controller
      */
     public function destroy(Ticket $ticket)
     {
-        // Delete associated images
         if ($ticket->image_paths) {
             $imagePaths = json_decode($ticket->image_paths, true);
             foreach ($imagePaths as $path) {
