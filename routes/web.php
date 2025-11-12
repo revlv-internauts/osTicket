@@ -3,6 +3,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\HelpTopicController;
+use App\Http\Controllers\ComputationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Models\User;
@@ -27,9 +28,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
-    Route::get('computation', function () {
-        return Inertia::render('computation');
-    })->name('computation');
+    Route::get('computation', [ComputationController::class, 'index'])->name('computation');
     
 
     Route::get('/users', function () {

@@ -290,11 +290,23 @@ class TicketController extends Controller
                 $updateData['closed_by'] = Auth::id();
                 $changes['Status'] = 'Closed';
                 $wasClosing = true;
+
+                $closedAt = Carbon::now();
+                $openedAt = $ticket->opened_at 
+                    ? Carbon::parse($ticket->opened_at) 
+                    : Carbon::parse($ticket->created_at);
+
+                if ($closedAt->lessThan($openedAt)) {
+                    $openedAt = Carbon::parse($ticket->created_at);
+                }
+                
+                $updateData['resolution_time'] = (int) round($openedAt->diffInMinutes($closedAt));
             }
 
             if ($validated['status'] === 'Open' && $ticket->status === 'Closed') {
                 $updateData['closed_at'] = null;
                 $updateData['closed_by'] = null;
+                $updateData['resolution_time'] = null;
                 $changes['Status'] = 'Reopened';
             }
         }

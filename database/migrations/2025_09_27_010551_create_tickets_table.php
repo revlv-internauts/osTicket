@@ -24,6 +24,7 @@ return new class extends Migration
             $table->foreignId('opened_by')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamp('closed_at')->nullable();
             $table->foreignId('closed_by')->nullable()->constrained('users')->onDelete('set null');
+            $table->integer('resolution_time')->nullable();
             $table->foreignId('assigned_to')->nullable()->constrained('users')->onDelete('set null');
             $table->text('response')->nullable();
             $table->json('image_paths')->nullable();
@@ -39,6 +40,7 @@ return new class extends Migration
             $table->index('opened_at');
             $table->index('opened_by');
             $table->index('closed_by');
+            $table->index('resolution_time');
         });
     }
 

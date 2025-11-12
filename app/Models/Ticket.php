@@ -26,6 +26,7 @@ class Ticket extends Model
         'opened_by',
         'closed_at',
         'closed_by',
+        'resolution_time',
         'assigned_to',
         'response',
         'image_paths',
@@ -41,8 +42,24 @@ class Ticket extends Model
     protected $casts = [
         'cc' => 'array', // Cast cc to array
         'opened_at' => 'datetime',
+        'closed_at' => 'datetime',
         'due_date' => 'datetime',
+        'resolution_time' => 'integer',
     ];
+
+    /**
+     * Boot function to set opened_at when creating
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($ticket) {
+            if (!$ticket->opened_at) {
+                $ticket->opened_at = now();
+            }
+        });
+    }
 
     /**
      * Get the user that owns the ticket.

@@ -1,12 +1,41 @@
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import StatsCard from "@/components/StatsCard";
+import ComputationView from '@/components/computation/computation-view';
 
-import { ChartPieDonutText } from "@/components/chart/chart-pie-simple";
+interface Ticket {
+    id: number;
+    ticket_name: string;
+    status: string;
+    priority: string;
+    opened_at: string;
+    closed_at: string;
+    resolution_time: number;
+    resolution_time_formatted: string;
+    user: string;
+    assigned_to: string;
+    help_topic: string;
+    opened_by: string;
+    closed_by: string;
+}
 
+interface Statistics {
+    total_tickets: number;
+    average_resolution_time: number;
+    average_resolution_time_formatted: string;
+    fastest_resolution_time: number;
+    fastest_resolution_time_formatted: string;
+    slowest_resolution_time: number;
+    slowest_resolution_time_formatted: string;
+    total_resolution_time: number;
+    total_resolution_time_formatted: string;
+}
+
+interface ComputationProps {
+    tickets: Ticket[];
+    statistics: Statistics;
+}
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -15,22 +44,16 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Dashboard() {
+export default function Computation({ tickets, statistics }: ComputationProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Dashboard" />
+            <Head title="Ticket Resolution Computation" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-
-                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:col-span-4">
-                        <StatsCard title="Total Tickets" value="0" />
-                        <StatsCard title="Opened" value="0" />
-                        <StatsCard title="Closed" value="0" />
-                    </div>
-                    
+                <div className="mb-4">
+                    <h1 className="text-3xl font-bold">Ticket Resolution Time</h1>
                 </div>
-               
-
+                
+                <ComputationView tickets={tickets} statistics={statistics} />
             </div>
         </AppLayout>
     );
