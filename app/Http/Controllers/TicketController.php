@@ -365,16 +365,12 @@ class TicketController extends Controller
      */
     public function destroy(Ticket $ticket)
     {
-        if ($ticket->image_paths) {
-            $imagePaths = json_decode($ticket->image_paths, true);
-            foreach ($imagePaths as $path) {
-                Storage::disk('public')->delete($path);
-            }
+        try {
+            $ticket->delete();
+            
+            return redirect()->back()->with('success', 'Ticket deleted successfully');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to delete ticket: ' . $e->getMessage());
         }
-
-        $ticket->delete();
-
-        return redirect()->route('tickets.index')
-            ->with('success', 'Ticket deleted successfully.');
     }
 }

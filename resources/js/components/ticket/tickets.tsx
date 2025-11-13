@@ -7,7 +7,7 @@ import { usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Pencil, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Pencil, ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import TicketEdit from './edit';
@@ -111,6 +121,9 @@ export default function TicketsTable({
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [ticketToDelete, setTicketToDelete] = useState<Ticket | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     
     const [sortField, setSortField] = useState<SortField | null>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -193,9 +206,13 @@ export default function TicketsTable({
         return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />;
     };
 
-    const colSpan = 6 + (showUserId ? 1 : 0) + (showAssignedTo ? 1 : 0);
+    const colSpan = 7 + (showUserId ? 1 : 0) + (showAssignedTo ? 1 : 0);
 
-    const handleRowClick = (ticket: Ticket) => {
+    const handleRowClick = (ticket: Ticket, event: React.MouseEvent) => {
+        // Don't open dialog if clicking on action buttons
+        if ((event.target as HTMLElement).closest('button')) {
+            return;
+        }
         setSelectedTicket(ticket);
         setDialogOpen(true);
     };
@@ -212,6 +229,39 @@ export default function TicketsTable({
         }
     };
 
+    const handleDeleteFromDialog = () => {
+        if (selectedTicket) {
+            setDialogOpen(false);
+            setTicketToDelete(selectedTicket);
+            setDeleteDialogOpen(true);
+        }
+    };
+
+    const handleDeleteClick = (ticket: Ticket, event: React.MouseEvent) => {
+        event.stopPropagation();
+        setTicketToDelete(ticket);
+        setDeleteDialogOpen(true);
+    };
+
+    const handleConfirmDelete = () => {
+        if (!ticketToDelete) return;
+
+        setIsDeleting(true);
+        router.delete(`/tickets/${ticketToDelete.id}`, {
+            onSuccess: () => {
+                toast.success('Ticket deleted successfully');
+                setDeleteDialogOpen(false);
+                setTicketToDelete(null);
+                setIsDeleting(false);
+            },
+            onError: (errors) => {
+                toast.error('Failed to delete ticket');
+                console.error(errors);
+                setIsDeleting(false);
+            },
+        });
+    };
+
     const handleCloseEditDialog = () => {
         setEditDialogOpen(false);
         setSelectedTicket(null);
@@ -223,7 +273,7 @@ export default function TicketsTable({
         router.reload({ only: ['tickets'] });
     };
 
-    // Tiptap editor for response display (read-only)
+
     const editor = useEditor({
         extensions: [
             StarterKit,
@@ -336,6 +386,7 @@ export default function TicketsTable({
                                     {getSortIcon('closed_at')}
                                 </Button>
                             </TableHead>
+                            <TableHead className="text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -343,7 +394,7 @@ export default function TicketsTable({
                             sortedTickets.map((ticket) => (
                                 <TableRow 
                                     key={ticket.id}
-                                    onClick={() => handleRowClick(ticket)}
+                                    onClick={(e) => handleRowClick(ticket, e)}
                                     className="cursor-pointer hover:bg-muted/50 transition-colors"
                                 >
                                     <TableCell>{ticket.ticket_name || '-'}</TableCell>
@@ -370,6 +421,16 @@ export default function TicketsTable({
                                     </TableCell>
                                     <TableCell>{formatDate(ticket.opened_at ?? '') || '-'}</TableCell>
                                     <TableCell>{formatDate(ticket.closed_at ?? '') || '-'}</TableCell>
+                                    <TableCell className="text-center">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={(e) => handleDeleteClick(ticket, e)}
+                                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </TableCell>
                                 </TableRow>
                             ))
                         ) : (
@@ -382,6 +443,31 @@ export default function TicketsTable({
                     </TableBody>
                 </Table>
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the ticket
+                            {ticketToDelete && (
+                                <span className="font-semibold"> "{ticketToDelete.ticket_name}"</span>
+                            )}.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleConfirmDelete}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isDeleting ? 'Deleting...' : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* Ticket Details Dialog */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -578,6 +664,14 @@ export default function TicketsTable({
                     <DialogFooter className="flex gap-2">
                         <Button variant="outline" onClick={handleCloseDialog} className="text-base px-6 py-2">
                             Close
+                        </Button>
+                        <Button 
+                            variant="destructive" 
+                            onClick={handleDeleteFromDialog} 
+                            className="text-base px-6 py-2"
+                        >
+                            <Trash2 className="h-5 w-5 mr-2" />
+                            Delete
                         </Button>
                         <Button onClick={handleEditFromDialog} className="text-base px-6 py-2">
                             <Pencil className="h-5 w-5 mr-2" />
