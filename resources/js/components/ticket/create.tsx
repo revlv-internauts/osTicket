@@ -44,7 +44,6 @@ type Ticket = {
     ticket_source: string;
     help_topic: number;
     department: string;
-    sla_plan?: string | null;
     opened_at?: string | null;
     assigned_to?: number | null;
     response?: string | null;
@@ -56,7 +55,6 @@ type Ticket = {
 type Props = {
     sourceOptions?: string[];
     departmentOptions?: string[];
-    slaOptions?: string[];
     priorityOptions?: string[];
     redirectUrl?: string | null;
     onSuccess?: () => void;
@@ -64,18 +62,11 @@ type Props = {
 
 const defaultSourceOptions = ["Email"];
 const defaultDepartmentOptions = ["NOC"];
-const defaultSlaOptions = [
-    "ADB SLA (18 hours - Active)",
-    "Default SLA (18 hours - Active)",
-    "DICT-MIMAROPA-PRVNET (18 hours - Active)",
-    "PIALEOS 3 SLA (18 hours - Active)"
-];
 const defaultPriorityOptions = ["Low", "Medium", "High"];
 
 const TicketCreate: React.FC<Props> = ({
     sourceOptions = defaultSourceOptions,
     departmentOptions = defaultDepartmentOptions,
-    slaOptions = defaultSlaOptions,
     priorityOptions = defaultPriorityOptions,
     redirectUrl = "/tickets",
     onSuccess
@@ -89,7 +80,6 @@ const TicketCreate: React.FC<Props> = ({
         ticket_source: string;
         help_topic: number;
         department: string;
-        sla_plan: string | null;
         opened_at: string | null;
         assigned_to: number | null;
         response: string | null;
@@ -102,7 +92,6 @@ const TicketCreate: React.FC<Props> = ({
         ticket_source: "Email",
         help_topic: 0,
         department: "NOC",
-        sla_plan: null,
         opened_at: null,
         assigned_to: null,
         response: null,
@@ -166,7 +155,6 @@ const TicketCreate: React.FC<Props> = ({
             ticket_source: "Email",
             help_topic: 0,
             department: "NOC",
-            sla_plan: null as string | null,
             opened_at: null as string | null,
             assigned_to: null as number | null,
             response: null as string | null,
@@ -643,26 +631,6 @@ const TicketCreate: React.FC<Props> = ({
                             )}
                         </div>
 
-                        {/* SLA Plan */}
-                        <div className="space-y-2">
-                            <Label htmlFor="sla_plan">SLA Plan</Label>
-                            <Select
-                                value={data.sla_plan || ""}
-                                onValueChange={(value) => handleSelectChange("sla_plan", value)}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select SLA plan" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {slaOptions.map(sla => (
-                                        <SelectItem key={sla} value={sla}>{sla}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {errors.sla_plan && (
-                                <p className="text-xs text-red-500">{errors.sla_plan}</p>
-                            )}
-                        </div>
 
                         {/* Opened At - Date and Time */}
                         <div className="space-y-2">

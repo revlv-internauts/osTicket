@@ -21,7 +21,6 @@ class Ticket extends Model
         'ticket_source',
         'help_topic',
         'department',
-        'sla_plan',
         'opened_at',
         'opened_by',
         'closed_at',

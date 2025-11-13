@@ -19,7 +19,6 @@ return new class extends Migration
             $table->string('ticket_source', 50);
             $table->foreignId('help_topic')->constrained('help_topics')->onDelete('cascade');
             $table->string('department', 100);
-            $table->string('sla_plan', 100)->nullable();
             $table->timestamp('opened_at')->nullable();
             $table->foreignId('opened_by')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamp('closed_at')->nullable();

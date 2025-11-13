@@ -54,7 +54,6 @@ interface Ticket {
     help_topic: number;
     help_topic_relation?: HelpTopic;
     department: string;
-    sla_plan?: string;
     due_date?: string;
     opened_at?: string;
     opened_by?: number;

@@ -111,7 +111,6 @@ class TicketController extends Controller
             'ticket_source' => 'required|string',
             'help_topic'    => 'required|exists:help_topics,id',
             'department'    => 'required|string',
-            'sla_plan'      => 'nullable|string',
             'opened_at'     => 'required|date',
             'assigned_to'   => 'required|exists:users,id',
             'response'      => 'required|string',

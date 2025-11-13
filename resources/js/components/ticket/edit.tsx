@@ -28,7 +28,6 @@ type TicketData = {
     ticket_source: string;
     help_topic: number;
     department: string;
-    sla_plan?: string | null;
     opened_at?: string | null;
     opened_by?: number | null;
     closed_at?: string | null;
@@ -132,7 +131,6 @@ const TicketEdit: React.FC<Props> = ({
         input.click();
     };
 
-    // Handle file attachment to editor
     const handleEditorFileUpload = () => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -144,7 +142,6 @@ const TicketEdit: React.FC<Props> = ({
             if (!files) return;
 
             Array.from(files).forEach(file => {
-                // Add file as a link in the editor
                 const fileName = file.name;
                 const fileSize = (file.size / 1024).toFixed(2) + ' KB';
                 editor?.chain().focus().insertContent(`<p>📎 <a href="#">${fileName}</a> (${fileSize})</p>`).run();
@@ -349,14 +346,6 @@ const TicketEdit: React.FC<Props> = ({
                             </div>
                         </div>
 
-                        {/* SLA Plan - Read Only */}
-                        <div className="space-y-2">
-                            <Label>SLA Plan</Label>
-                            <div className="p-2 bg-muted rounded-md">
-                                <span>{ticket.sla_plan || 'N/A'}</span>
-                            </div>
-                        </div>
-
                         {/* Opened At - Read Only */}
                         <div className="space-y-2">
                             <Label>Opened At</Label>
@@ -476,42 +465,6 @@ const TicketEdit: React.FC<Props> = ({
                                     className={editor?.isActive('heading', { level: 3 }) ? 'bg-muted' : ''}
                                 >
                                     <Heading3 className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                                    className={editor?.isActive('bulletList') ? 'bg-muted' : ''}
-                                >
-                                    <List className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-                                    className={editor?.isActive('orderedList') ? 'bg-muted' : ''}
-                                >
-                                    <ListOrdered className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
-                                    className={editor?.isActive('codeBlock') ? 'bg-muted' : ''}
-                                >
-                                    <Code className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-                                    className={editor?.isActive('blockquote') ? 'bg-muted' : ''}
-                                >
-                                    <Quote className="h-4 w-4" />
                                 </Button>
                                 <div className="border-l mx-1" />
                                 <Button
