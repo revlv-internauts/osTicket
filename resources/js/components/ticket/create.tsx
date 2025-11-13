@@ -282,11 +282,27 @@ const TicketCreate: React.FC<Props> = ({
 
     const validateForm = () => {
         const newErrors: { [key: string]: boolean } = {};
+        
         if (!data.ticket_source) newErrors.ticket_source = true;
         if (!data.help_topic) newErrors.help_topic = true;
         if (!data.department) newErrors.department = true;
+        if (!data.opened_at) newErrors.opened_at = true;
+        if (!data.priority) newErrors.priority = true;
+        if (!data.assigned_to) newErrors.assigned_to = true;
+        if (!data.response || data.response.trim() === '' || data.response === '<p></p>') newErrors.response = true;
 
         setFormErrors(newErrors);
+        
+        if (Object.keys(newErrors).length > 0) {
+            if (newErrors.ticket_source) toast.error("Ticket Source is required");
+            if (newErrors.help_topic) toast.error("Help Topic is required");
+            if (newErrors.department) toast.error("Department is required");
+            if (newErrors.opened_at) toast.error("Opened At date and time is required");
+            if (newErrors.priority) toast.error("Priority is required");
+            if (newErrors.assigned_to) toast.error("Assigned To is required");
+            if (newErrors.response) toast.error("Response is required");
+        }
+        
         return Object.keys(newErrors).length === 0;
     };
 
@@ -367,7 +383,7 @@ const TicketCreate: React.FC<Props> = ({
             <CardHeader>
                 <CardTitle>Create New Support Ticket</CardTitle>
                 <CardDescription>
-                    Fill in the details below to create a new support ticket. Ticket name will be auto-generated.
+                    Fill in the details below to create a new support ticket.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -444,6 +460,9 @@ const TicketCreate: React.FC<Props> = ({
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {formErrors.help_topic && (
+                                <p className="text-xs text-red-500">Help Topic is required</p>
+                            )}
                             {errors.help_topic && (
                                 <p className="text-xs text-red-500">{errors.help_topic}</p>
                             )}
@@ -647,7 +666,12 @@ const TicketCreate: React.FC<Props> = ({
 
                         {/* Opened At - Date and Time */}
                         <div className="space-y-2">
-                            <Label htmlFor="opened_at">Opened At</Label>
+                            <Label 
+                                htmlFor="opened_at" 
+                                className={formErrors.opened_at ? "text-red-500" : ""}
+                            >
+                                Opened At*
+                            </Label>
                             <div className="flex gap-2">
                                 <Popover>
                                     <PopoverTrigger asChild>
@@ -656,7 +680,8 @@ const TicketCreate: React.FC<Props> = ({
                                             variant={"outline"}
                                             className={cn(
                                                 "flex-1 justify-start text-left font-normal h-10",
-                                                !date && "text-muted-foreground"
+                                                !date && "text-muted-foreground",
+                                                formErrors.opened_at && "border-red-500"
                                             )}
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
@@ -724,10 +749,16 @@ const TicketCreate: React.FC<Props> = ({
                                         type="time"
                                         value={time}
                                         onChange={(e) => handleTimeChange(e.target.value)}
-                                        className="pl-10 h-10 w-full"
+                                        className={cn(
+                                            "pl-10 h-10 w-full",
+                                            formErrors.opened_at && "border-red-500"
+                                        )}
                                     />
                                 </div>
                             </div>
+                            {formErrors.opened_at && (
+                                <p className="text-xs text-red-500">Opened At date and time is required</p>
+                            )}
                             {errors.opened_at && (
                                 <p className="text-xs text-red-500">{errors.opened_at}</p>
                             )}
@@ -735,12 +766,17 @@ const TicketCreate: React.FC<Props> = ({
 
                         {/* Priority */}
                         <div className="space-y-2">
-                            <Label htmlFor="priority">Priority</Label>
+                            <Label 
+                                htmlFor="priority" 
+                                className={formErrors.priority ? "text-red-500" : ""}
+                            >
+                                Priority*
+                            </Label>
                             <Select
                                 value={data.priority || ""}
                                 onValueChange={(value) => handleSelectChange("priority", value)}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger className={formErrors.priority ? "border-red-500" : ""}>
                                     <SelectValue placeholder="Select priority" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -749,6 +785,9 @@ const TicketCreate: React.FC<Props> = ({
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {formErrors.priority && (
+                                <p className="text-xs text-red-500">Priority is required</p>
+                            )}
                             {errors.priority && (
                                 <p className="text-xs text-red-500">{errors.priority}</p>
                             )}
@@ -775,12 +814,17 @@ const TicketCreate: React.FC<Props> = ({
 
                         {/* Assigned To */}
                         <div className="space-y-2">
-                            <Label htmlFor="assigned_to">Assigned To</Label>
+                            <Label 
+                                htmlFor="assigned_to" 
+                                className={formErrors.assigned_to ? "text-red-500" : ""}
+                            >
+                                Assigned To*
+                            </Label>
                             <Select
                                 value={data.assigned_to?.toString() || ""}
                                 onValueChange={(value) => handleSelectChange("assigned_to", parseInt(value))}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger className={formErrors.assigned_to ? "border-red-500" : ""}>
                                     <SelectValue placeholder="Select user" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -791,6 +835,9 @@ const TicketCreate: React.FC<Props> = ({
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {formErrors.assigned_to && (
+                                <p className="text-xs text-red-500">Assigned To is required</p>
+                            )}
                             {errors.assigned_to && (
                                 <p className="text-xs text-red-500">{errors.assigned_to}</p>
                             )}
@@ -799,10 +846,18 @@ const TicketCreate: React.FC<Props> = ({
 
                     {/* Response - Tiptap Editor */}
                     <div className="space-y-2">
-                        <Label htmlFor="response">Response</Label>
+                        <Label 
+                            htmlFor="response" 
+                            className={formErrors.response ? "text-red-500" : ""}
+                        >
+                            Response*
+                        </Label>
                         
                         {/* Toolbar */}
-                        <div className="border rounded-t-lg bg-muted/50 p-2 flex flex-wrap gap-1">
+                        <div className={cn(
+                            "border rounded-t-lg bg-muted/50 p-2 flex flex-wrap gap-1",
+                            formErrors.response && "border-red-500"
+                        )}>
                             <Button
                                 type="button"
                                 variant="ghost"
@@ -857,42 +912,6 @@ const TicketCreate: React.FC<Props> = ({
                             >
                                 <Heading3 className="h-4 w-4" />
                             </Button>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                                className={editor?.isActive('bulletList') ? 'bg-muted' : ''}
-                            >
-                                <List className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-                                className={editor?.isActive('orderedList') ? 'bg-muted' : ''}
-                            >
-                                <ListOrdered className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
-                                className={editor?.isActive('codeBlock') ? 'bg-muted' : ''}
-                            >
-                                <Code className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-                                className={editor?.isActive('blockquote') ? 'bg-muted' : ''}
-                            >
-                                <Quote className="h-4 w-4" />
-                            </Button>
                             <div className="border-l mx-1" />
                             <Button
                                 type="button"
@@ -913,7 +932,10 @@ const TicketCreate: React.FC<Props> = ({
                         </div>
 
                         {/* Editor */}
-                        <div className="border rounded-b-lg bg-background">
+                        <div className={cn(
+                            "border rounded-b-lg bg-background",
+                            formErrors.response && "border-red-500"
+                        )}>
                             <style>{`
                                 .ProseMirror {
                                     outline: none;
@@ -1003,6 +1025,9 @@ const TicketCreate: React.FC<Props> = ({
                             `}</style>
                             <EditorContent editor={editor} />
                         </div>
+                        {formErrors.response && (
+                            <p className="text-xs text-red-500">Response is required</p>
+                        )}
                         {errors.response && (
                             <p className="text-xs text-red-500">{errors.response}</p>
                         )}
