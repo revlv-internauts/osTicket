@@ -7,7 +7,7 @@ import { usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Pencil, ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
+import { Pencil, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Search } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -35,6 +35,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
 import TiptapImage from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
+import { Input } from '@/components/ui/input';
 
 interface User {
     id: number;
@@ -124,6 +125,7 @@ export default function TicketsTable({
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [ticketToDelete, setTicketToDelete] = useState<Ticket | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
     
     const [sortField, setSortField] = useState<SortField | null>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -179,6 +181,15 @@ export default function TicketsTable({
         return 0;
     });
 
+    const filteredAndSortedTickets = sortedTickets.filter(ticket => 
+        ticket.ticket_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.assigned_to_user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.priority?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.department.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     const handleSort = (field: SortField) => {
         if (sortField === field) {
             if (sortDirection === 'asc') {
@@ -209,7 +220,6 @@ export default function TicketsTable({
     const colSpan = 7 + (showUserId ? 1 : 0) + (showAssignedTo ? 1 : 0);
 
     const handleRowClick = (ticket: Ticket, event: React.MouseEvent) => {
-        // Don't open dialog if clicking on action buttons
         if ((event.target as HTMLElement).closest('button')) {
             return;
         }
@@ -307,6 +317,18 @@ export default function TicketsTable({
 
     return (
         <>
+            {/* Search Input */}
+            <div className="mb-4 flex items-center gap-2">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <Input 
+                    type="text" 
+                    placeholder="Search tickets" 
+                    className="h-10 w-full max-w-md"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+
             <div className="border rounded-md">
                 <Table>
                     <TableCaption>{caption}</TableCaption>
@@ -386,12 +408,12 @@ export default function TicketsTable({
                                     {getSortIcon('closed_at')}
                                 </Button>
                             </TableHead>
-                            <TableHead className="text-center">Actions</TableHead>
+                            <TableHead className="text-center">Delete</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {sortedTickets && sortedTickets.length > 0 ? (
-                            sortedTickets.map((ticket) => (
+                        {filteredAndSortedTickets && filteredAndSortedTickets.length > 0 ? (
+                            filteredAndSortedTickets.map((ticket) => (
                                 <TableRow 
                                     key={ticket.id}
                                     onClick={(e) => handleRowClick(ticket, e)}
@@ -436,7 +458,7 @@ export default function TicketsTable({
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={colSpan} className="text-center py-8 text-muted-foreground">
-                                    No tickets found
+                                    {searchTerm ? 'No tickets found matching your search' : 'No tickets found'}
                                 </TableCell>
                             </TableRow>
                         )}

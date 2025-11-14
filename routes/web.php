@@ -4,6 +4,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\HelpTopicController;
 use App\Http\Controllers\ComputationController;
+use App\Http\Controllers\ListController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Models\User;
@@ -17,11 +18,10 @@ Route::get('/', function () {
 
 
 Route::middleware(['auth', 'verified'])->group(function () {
-     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
-    Route::get('list', function () {
-        return Inertia::render('list');
-    })->name('list');
+    Route::get('list', [ListController::class, 'index'])->name('list');
+    Route::post('/users', [ListController::class, 'store'])->name('admin.users.store');
 
    
     Route::get('ticket', [TicketController::class, 'index'])->name('ticket');
