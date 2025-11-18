@@ -6,37 +6,36 @@
     <style>
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
-            background-color: #0f0f0f;
-            color: #f9fafb;
+            background-color: #f3f4f6;
+            color: #111827;
             margin: 0;
             padding: 0;
         }
         .container {
-            max-width: 650px;
             margin: 0 auto;
-            background-color: #1a1a1a;
+            background-color: #ffffff;
             border-radius: 10px;
             overflow: hidden;
-            border: 1px solid #27272a;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
         }
         .header {
-            background-color: #111;
+            background-color: #4f46e5;
             color: #fff;
             padding: 25px 30px;
             font-size: 22px;
             font-weight: bold;
-            border-bottom: 1px solid #27272a;
         }
         .content {
             padding: 30px;
         }
         h2 {
-            color: #fff;
+            color: #111827;
             margin-top: 0;
         }
         .ticket-section {
-            background-color: #18181b;
-            border: 1px solid #27272a;
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
             border-radius: 8px;
             padding: 20px;
             margin-top: 15px;
@@ -45,18 +44,18 @@
             display: flex;
             justify-content: space-between;
             padding: 8px 0;
-            border-bottom: 1px solid #27272a;
+            border-bottom: 1px solid #e5e7eb;
         }
         .detail-row:last-child {
             border-bottom: none;
         }
         .label {
-            color: #9ca3af;
+            color: #6b7280;
             font-weight: 600;
             width: 40%;
         }
         .value {
-            color: #e5e7eb;
+            color: #111827;
             text-align: right;
             width: 55%;
         }
@@ -98,14 +97,32 @@
             padding: 20px;
             color: #6b7280;
             font-size: 12px;
-            background-color: #111;
-            border-top: 1px solid #27272a;
+            background-color: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+        }
+        /* Image styling to prevent cut-off */
+        .ticket-section img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #e5e7eb;
+        }
+        .response-content {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 5px;
+            color: #374151;
+            overflow-x: auto;
+            word-wrap: break-word;
+            border: 1px solid #e5e7eb;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">🎫Ticket Created</div>
+        <div class="header">Ticket Created</div>
         <div class="content">
             <p>Hello,</p>
             <p>A ticket has been created</p>
@@ -166,18 +183,14 @@
 
             @if($ticket->response)
             <div class="ticket-section">
-                <h3 style="color:#4F46E5;">Initial Response</h3>
-                <div style="background-color:#111; padding:15px; border-radius:5px; color:#d1d5db;">
+                <h3>Initial Response</h3>
+                <div class="response-content">
                     {!! $processedResponse ?? strip_tags($ticket->response, '<p><br><strong><em><ul><ol><li><img>') !!}
                 </div>
             </div>
             @endif
 
-            <center>
-                <a href="{{ $ticketUrl }}" class="button">View Ticket</a>
-            </center>
-
-            <p style="margin-top: 20px; color:#9ca3af;">
+            <p style="margin-top: 20px; color:#6b7280;">
                 <small>Please click the button above to view the full ticket details and respond.</small>
             </p>
         </div>

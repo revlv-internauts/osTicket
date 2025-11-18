@@ -43,19 +43,21 @@ const chartConfig = {
 } satisfies ChartConfig
 
 export function ChartAreaInteractive({ data = [] }: { data?: any[] }) {
-  const [timeRange, setTimeRange] = React.useState("90d")
+  const [timeRange, setTimeRange] = React.useState("week")
 
   const filteredData = data.filter((item) => {
     const date = new Date(item.date)
     const now = new Date()
-    let daysToSubtract = 90
-    if (timeRange === "30d") {
-      daysToSubtract = 30
-    } else if (timeRange === "7d") {
-      daysToSubtract = 7
-    }
     const startDate = new Date(now)
-    startDate.setDate(startDate.getDate() - daysToSubtract)
+    
+    if (timeRange === "week") {
+      startDate.setDate(startDate.getDate() - 7)
+    } else if (timeRange === "month") {
+      startDate.setMonth(startDate.getMonth() - 1)
+    } else if (timeRange === "year") {
+      startDate.setFullYear(startDate.getFullYear() - 1)
+    }
+    
     return date >= startDate
   })
   
@@ -79,17 +81,17 @@ export function ChartAreaInteractive({ data = [] }: { data?: any[] }) {
             className="hidden w-[160px] rounded-lg sm:ml-auto sm:flex"
             aria-label="Select a value"
           >
-            <SelectValue placeholder="Last 3 months" />
+            <SelectValue placeholder="This Week" />
           </SelectTrigger>
           <SelectContent className="rounded-xl">
-            <SelectItem value="90d" className="rounded-lg">
-              Last 3 months
+            <SelectItem value="week" className="rounded-lg">
+              This Week
             </SelectItem>
-            <SelectItem value="30d" className="rounded-lg">
-              Last 30 days
+            <SelectItem value="month" className="rounded-lg">
+              This Month
             </SelectItem>
-            <SelectItem value="7d" className="rounded-lg">
-              Last 7 days
+            <SelectItem value="year" className="rounded-lg">
+              This Year
             </SelectItem>
           </SelectContent>
         </Select>

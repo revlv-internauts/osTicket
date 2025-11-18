@@ -686,6 +686,10 @@ export default function TicketsTable({
                     <DialogFooter className="flex gap-2">
                         <Button variant="outline" onClick={handleCloseDialog} className="text-base px-6 py-2">
                             Close
+                        </Button>                        
+                        <Button onClick={handleEditFromDialog} className="text-base px-6 py-2">
+                            <Pencil className="h-5 w-5 mr-2" />
+                            Edit Ticket
                         </Button>
                         <Button 
                             variant="destructive" 
@@ -694,10 +698,6 @@ export default function TicketsTable({
                         >
                             <Trash2 className="h-5 w-5 mr-2" />
                             Delete
-                        </Button>
-                        <Button onClick={handleEditFromDialog} className="text-base px-6 py-2">
-                            <Pencil className="h-5 w-5 mr-2" />
-                            Edit Ticket
                         </Button>
                     </DialogFooter>
                 </DialogContent>

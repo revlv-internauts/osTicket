@@ -278,6 +278,7 @@ const TicketCreate: React.FC<Props> = ({
         if (!data.priority) newErrors.priority = true;
         if (!data.assigned_to) newErrors.assigned_to = true;
         if (!data.response || data.response.trim() === '' || data.response === '<p></p>') newErrors.response = true;
+        if (!data.cc || data.cc.length === 0) newErrors.cc = true;
 
         setFormErrors(newErrors);
         
@@ -289,6 +290,7 @@ const TicketCreate: React.FC<Props> = ({
             if (newErrors.priority) toast.error("Priority is required");
             if (newErrors.assigned_to) toast.error("Assigned To is required");
             if (newErrors.response) toast.error("Response is required");
+            if (newErrors.cc) toast.error("At least one CC email is required");
         }
         
         return Object.keys(newErrors).length === 0;
@@ -459,7 +461,9 @@ const TicketCreate: React.FC<Props> = ({
                         {/* CC Email - Multi Select */}
                         <div className="space-y-2 md:col-span-2">
                             <div className="flex items-center justify-between">
-                                <Label htmlFor="cc">CC Emails (Multiple)</Label>
+                                <Label htmlFor="cc" className={formErrors.cc ? "text-red-500" : ""}>
+                                    CC Emails (Multiple)*
+                                </Label>
                                 <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
                                     <DialogTrigger asChild>
                                         <Button variant="outline" size="sm" type="button">
@@ -517,7 +521,10 @@ const TicketCreate: React.FC<Props> = ({
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        className="w-full justify-start text-left font-normal"
+                                        className={cn(
+                                            "w-full justify-start text-left font-normal",
+                                            formErrors.cc && "border-red-500"
+                                        )}
                                     >
                                         <span className="text-muted-foreground">
                                             {getSelectedEmails().length > 0
@@ -569,17 +576,31 @@ const TicketCreate: React.FC<Props> = ({
                             {getSelectedEmails().length > 0 && (
                                 <div className="flex flex-wrap gap-2 mt-2">
                                     {getSelectedEmails().map((email: any) => (
-                                        <Badge key={email.id} variant="secondary" className="gap-1">
-                                            {email.email_address}
-                                            <X
-                                                className="h-3 w-3 cursor-pointer hover:text-destructive"
-                                                onClick={() => removeCcEmail(email.id)}
-                                            />
+                                        <Badge 
+                                            key={email.id} 
+                                            variant="secondary" 
+                                            className="gap-1 pr-1"
+                                        >
+                                            <span>{email.email_address}</span>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    removeCcEmail(email.id);
+                                                }}
+                                                className="ml-1 rounded-sm hover:bg-destructive/20 p-0.5"
+                                            >
+                                                <X className="h-3 w-3 hover:text-destructive" />
+                                            </button>
                                         </Badge>
                                     ))}
                                 </div>
                             )}
 
+                            {formErrors.cc && (
+                                <p className="text-xs text-red-500">At least one CC email is required</p>
+                            )}
                             {errors.cc && (
                                 <p className="text-xs text-red-500">{errors.cc}</p>
                             )}
