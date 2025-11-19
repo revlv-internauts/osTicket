@@ -158,6 +158,13 @@
                     <div class="value">{{ $ticket->user->name ?? 'Unknown' }}</div>
                 </div>
 
+                @if($ticket->recipient)
+                <div class="detail-row">
+                    <div class="label">Recipient</div>
+                    <div class="value">{{ $ticket->recipient }}</div>
+                </div>
+                @endif
+
                 <div class="detail-row">
                     <div class="label">Help Topic</div>
                     <div class="value">{{ $ticket->helpTopicRelation->name ?? 'N/A' }}</div>

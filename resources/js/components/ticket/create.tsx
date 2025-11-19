@@ -40,6 +40,7 @@ import Link from '@tiptap/extension-link';
 
 type Ticket = {
     user_id: number;
+    recipient?: string | null;
     cc?: number[] | null;
     ticket_source: string;
     help_topic: number;
@@ -76,6 +77,7 @@ const TicketCreate: React.FC<Props> = ({
 
     const { data, setData, post, processing, errors } = useForm<{
         user_id: number;
+        recipient: string;
         cc: number[];
         ticket_source: string;
         help_topic: number;
@@ -88,6 +90,7 @@ const TicketCreate: React.FC<Props> = ({
         images: File[];
     }>({
         user_id: user?.id || 0,
+        recipient: "",
         cc: [] as number[],
         ticket_source: "Email",
         help_topic: 0,
@@ -151,6 +154,7 @@ const TicketCreate: React.FC<Props> = ({
     const resetForm = () => {
         setData({
             user_id: user?.id || 0,
+            recipient: "",
             cc: [] as number[],
             ticket_source: "Email",
             help_topic: 0,
@@ -384,6 +388,23 @@ const TicketCreate: React.FC<Props> = ({
                                 <span>{user?.name || 'Loading user...'}</span>
                             </div>
                         </div>
+                        
+                        {/* Recipient Email */}
+                        <div className="space-y-2">
+                            <Label htmlFor="recipient">
+                                Recipient Email
+                            </Label>
+                            <Input
+                                id="recipient"
+                                type="email"
+                                value={data.recipient}
+                                onChange={(e) => setData("recipient", e.target.value)}
+                                placeholder="recipient@example.com"
+                            />
+                            {errors.recipient && (
+                                <p className="text-xs text-red-500">{errors.recipient}</p>
+                            )}
+                        </div>
 
                         {/* Help Topic */}
                         <div className="space-y-2">
@@ -455,8 +476,9 @@ const TicketCreate: React.FC<Props> = ({
                             )}
                         </div>
 
+
                         {/* CC Email - Multi Select */}
-                        <div className="space-y-2 md:col-span-2">
+                        <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="cc" className={formErrors.cc ? "text-red-500" : ""}>
                                     CC Emails (Multiple)*
@@ -600,6 +622,66 @@ const TicketCreate: React.FC<Props> = ({
                             )}
                             {errors.cc && (
                                 <p className="text-xs text-red-500">{errors.cc}</p>
+                            )}
+                        </div>
+
+                        {/* Assigned To */}
+                        <div className="space-y-2">
+                            <Label 
+                                htmlFor="assigned_to" 
+                                className={formErrors.assigned_to ? "text-red-500" : ""}
+                            >
+                                Assigned To*
+                            </Label>
+                            <Select
+                                value={data.assigned_to?.toString() || ""}
+                                onValueChange={(value) => handleSelectChange("assigned_to", parseInt(value))}
+                            >
+                                <SelectTrigger className={formErrors.assigned_to ? "border-red-500" : ""}>
+                                    <SelectValue placeholder="Select user" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {users.map((user: any) => (
+                                        <SelectItem key={user.id} value={user.id.toString()}>
+                                            {user.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {formErrors.assigned_to && (
+                                <p className="text-xs text-red-500">Assigned To is required</p>
+                            )}
+                            {errors.assigned_to && (
+                                <p className="text-xs text-red-500">{errors.assigned_to}</p>
+                            )}
+                        </div>
+                            
+                        {/* Priority */}
+                        <div className="space-y-2">
+                            <Label 
+                                htmlFor="priority" 
+                                className={formErrors.priority ? "text-red-500" : ""}
+                            >
+                                Priority*
+                            </Label>
+                            <Select
+                                value={data.priority || ""}
+                                onValueChange={(value) => handleSelectChange("priority", value)}
+                            >
+                                <SelectTrigger className={formErrors.priority ? "border-red-500" : ""}>
+                                    <SelectValue placeholder="Select priority" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {priorityOptions.map(priority => (
+                                        <SelectItem key={priority} value={priority}>{priority}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {formErrors.priority && (
+                                <p className="text-xs text-red-500">Priority is required</p>
+                            )}
+                            {errors.priority && (
+                                <p className="text-xs text-red-500">{errors.priority}</p>
                             )}
                         </div>
 
@@ -750,84 +832,6 @@ const TicketCreate: React.FC<Props> = ({
                             )}
                         </div>
 
-                        {/* Priority */}
-                        <div className="space-y-2">
-                            <Label 
-                                htmlFor="priority" 
-                                className={formErrors.priority ? "text-red-500" : ""}
-                            >
-                                Priority*
-                            </Label>
-                            <Select
-                                value={data.priority || ""}
-                                onValueChange={(value) => handleSelectChange("priority", value)}
-                            >
-                                <SelectTrigger className={formErrors.priority ? "border-red-500" : ""}>
-                                    <SelectValue placeholder="Select priority" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {priorityOptions.map(priority => (
-                                        <SelectItem key={priority} value={priority}>{priority}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {formErrors.priority && (
-                                <p className="text-xs text-red-500">Priority is required</p>
-                            )}
-                            {errors.priority && (
-                                <p className="text-xs text-red-500">{errors.priority}</p>
-                            )}
-                        </div>
-
-                        {/* Status */}
-                        <div className="space-y-2">
-                            <Label htmlFor="status">Status</Label>
-                            <Select
-                                value={data.status || ""}
-                                onValueChange={(value) => handleSelectChange("status", value)}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Open">Open</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            {errors.status && (
-                                <p className="text-xs text-red-500">{errors.status}</p>
-                            )}
-                        </div>
-
-                        {/* Assigned To */}
-                        <div className="space-y-2">
-                            <Label 
-                                htmlFor="assigned_to" 
-                                className={formErrors.assigned_to ? "text-red-500" : ""}
-                            >
-                                Assigned To*
-                            </Label>
-                            <Select
-                                value={data.assigned_to?.toString() || ""}
-                                onValueChange={(value) => handleSelectChange("assigned_to", parseInt(value))}
-                            >
-                                <SelectTrigger className={formErrors.assigned_to ? "border-red-500" : ""}>
-                                    <SelectValue placeholder="Select user" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {users.map((user: any) => (
-                                        <SelectItem key={user.id} value={user.id.toString()}>
-                                            {user.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {formErrors.assigned_to && (
-                                <p className="text-xs text-red-500">Assigned To is required</p>
-                            )}
-                            {errors.assigned_to && (
-                                <p className="text-xs text-red-500">{errors.assigned_to}</p>
-                            )}
-                        </div>
                     </div>
 
                     {/* Body - Tiptap Editor */}

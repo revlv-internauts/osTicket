@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { CheckCircle, XCircle, Bold, Italic, List, ListOrdered, Heading1, Heading2, Heading3, Code, Quote, Underline as UnderlineIcon, Image as ImageIcon, Paperclip } from "lucide-react";
 import { format, parseISO } from "date-fns";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -13,10 +13,19 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
 import TiptapImage from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 type TicketFormData = {
     body?: string | null;
     status?: string | null;
+    assigned_to?: number | null;
+    priority?: string | null;
     images?: File[];
 };
 
@@ -24,6 +33,7 @@ type TicketData = {
     id: number;
     ticket_name: string;
     user_id: number;
+    recipient?: string | null;
     cc?: number[] | null;
     ticket_source: string;
     help_topic: number;
@@ -57,9 +67,13 @@ const TicketEdit: React.FC<Props> = ({
     redirectUrl = "/tickets",
     onSuccess
 }) => {
+    const { users = [] } = usePage().props as any;
+    
     const [data, setData] = useState<TicketFormData>({
         body: ticket.body,
         status: ticket.status,
+        assigned_to: ticket.assigned_to,
+        priority: ticket.priority,
         images: [] as File[],
     });
 
@@ -161,6 +175,8 @@ const TicketEdit: React.FC<Props> = ({
         formData.append('_method', 'PUT');
         formData.append('body', data.body || '');
         formData.append('status', 'Closed');
+        if (data.assigned_to) formData.append('assigned_to', data.assigned_to.toString());
+        if (data.priority) formData.append('priority', data.priority);
         
         if (data.images && data.images.length > 0) {
             data.images.forEach((image, index) => {
@@ -199,6 +215,8 @@ const TicketEdit: React.FC<Props> = ({
         formData.append('_method', 'PUT');
         formData.append('body', data.body || '');
         formData.append('status', 'Open');
+        if (data.assigned_to) formData.append('assigned_to', data.assigned_to.toString());
+        if (data.priority) formData.append('priority', data.priority);
         
         if (data.images && data.images.length > 0) {
             data.images.forEach((image, index) => {
@@ -238,6 +256,8 @@ const TicketEdit: React.FC<Props> = ({
         const formData = new FormData();
         formData.append('_method', 'PUT');
         formData.append('body', data.body || '');
+        if (data.assigned_to) formData.append('assigned_to', data.assigned_to.toString());
+        if (data.priority) formData.append('priority', data.priority);
         
         if (data.images && data.images.length > 0) {
             data.images.forEach((image, index) => {
@@ -388,20 +408,60 @@ const TicketEdit: React.FC<Props> = ({
                             </div>
                         )}
 
-                        {/* Priority - Read Only */}
+                        
+
+                        {/* Recipient - Read Only */}
                         <div className="space-y-2">
-                            <Label>Priority</Label>
+                            <Label>Recipient Email</Label>
                             <div className="p-2 bg-muted rounded-md">
-                                <span>{ticket.priority || 'N/A'}</span>
+                                <span>{ticket.recipient || 'N/A'}</span>
                             </div>
                         </div>
 
-                        {/* Assigned To - Read Only */}
+                        {/* Priority - Editable */}
                         <div className="space-y-2">
-                            <Label>Assigned To</Label>
-                            <div className="p-2 bg-muted rounded-md">
-                                <span>{ticket.assigned_to_user?.name || 'Unassigned'}</span>
-                            </div>
+                            <Label htmlFor="priority">Priority</Label>
+                            <Select
+                                value={data.priority || ""}
+                                onValueChange={(value) => setData(prev => ({ ...prev, priority: value }))}
+                                disabled={isTicketClosed}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select priority" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Low">Low</SelectItem>
+                                    <SelectItem value="Medium">Medium</SelectItem>
+                                    <SelectItem value="High">High</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {errors.priority && (
+                                <p className="text-xs text-red-500">{errors.priority}</p>
+                            )}
+                        </div>
+
+                        {/* Assigned To - Editable */}
+                        <div className="space-y-2">
+                            <Label htmlFor="assigned_to">Assigned To</Label>
+                            <Select
+                                value={data.assigned_to?.toString() || ""}
+                                onValueChange={(value) => setData(prev => ({ ...prev, assigned_to: parseInt(value) }))}
+                                disabled={isTicketClosed}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select user" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {users.map((user: any) => (
+                                        <SelectItem key={user.id} value={user.id.toString()}>
+                                            {user.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.assigned_to && (
+                                <p className="text-xs text-red-500">{errors.assigned_to}</p>
+                            )}
                         </div>
                     </div>
 

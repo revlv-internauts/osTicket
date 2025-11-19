@@ -106,6 +106,7 @@ class TicketController extends Controller
     {
         $validated = $request->validate([
             'user_id'       => 'required|exists:users,id',
+            'recipient'     => 'nullable|email',
             'cc'            => 'nullable|array',
             'cc.*'          => 'exists:emails,id',
             'ticket_source' => 'required|string',
@@ -183,6 +184,10 @@ class TicketController extends Controller
                 $mailtrapService->sendTicketCreated($ticket, $ticket->user->email);
             }
 
+            if ($ticket->recipient) {
+                $mailtrapService->sendTicketCreated($ticket, $ticket->recipient);
+            }
+
             if ($ticket->assigned_to && $ticket->assignedToUser && $ticket->assignedToUser->email) {
                 $mailtrapService->sendTicketCreated($ticket, $ticket->assignedToUser->email);
             }
@@ -233,8 +238,11 @@ class TicketController extends Controller
             'closedByUser'
         ]);
 
+        $users = User::select('id', 'name')->get();
+
         return Inertia::render('Tickets/Edit', [
             'ticket' => $ticket,
+            'users' => $users,
         ]);
     }
 
@@ -246,12 +254,25 @@ class TicketController extends Controller
         $validated = $request->validate([
             'body' => 'nullable|string',
             'status' => 'nullable|string|in:Open,Closed',
+            'assigned_to' => 'nullable|exists:users,id',
+            'priority' => 'nullable|string|in:Low,Medium,High',
             'images' => 'nullable|array',
             'images.*' => 'image|max:2048',
         ]);
 
         $updateData = [];
         $changes = [];
+
+        if (isset($validated['assigned_to']) && $validated['assigned_to'] != $ticket->assigned_to) {
+            $updateData['assigned_to'] = $validated['assigned_to'];
+            $assignedUser = User::find($validated['assigned_to']);
+            $changes['Assigned To'] = $assignedUser ? $assignedUser->name : 'Unassigned';
+        }
+
+        if (isset($validated['priority']) && $validated['priority'] != $ticket->priority) {
+            $updateData['priority'] = $validated['priority'];
+            $changes['Priority'] = $validated['priority'];
+        }
 
         if (isset($validated['body'])) {
             $processedResponse = $validated['body'];
@@ -331,6 +352,9 @@ class TicketController extends Controller
                     if ($ticket->user && $ticket->user->email) {
                         $mailtrapService->sendTicketClosed($ticket, $ticket->user->email);
                     }
+                    if ($ticket->recipient) {
+                        $mailtrapService->sendTicketClosed($ticket, $ticket->recipient);
+                    }
                     if ($ticket->assigned_to && $ticket->assignedToUser && $ticket->assignedToUser->email) {
                         $mailtrapService->sendTicketClosed($ticket, $ticket->assignedToUser->email);
                     }
@@ -342,6 +366,9 @@ class TicketController extends Controller
                 } else {
                     if ($ticket->user && $ticket->user->email) {
                         $mailtrapService->sendTicketUpdated($ticket, $ticket->user->email, $changes);
+                    }
+                    if ($ticket->recipient) {
+                        $mailtrapService->sendTicketUpdated($ticket, $ticket->recipient, $changes);
                     }
                     if ($ticket->assigned_to && $ticket->assignedToUser && $ticket->assignedToUser->email) {
                         $mailtrapService->sendTicketUpdated($ticket, $ticket->assignedToUser->email, $changes);

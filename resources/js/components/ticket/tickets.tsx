@@ -58,6 +58,7 @@ interface Ticket {
     ticket_name: string;
     user_id: number;
     user?: User;
+    recipient?: string;
     cc?: number[];
     cc_emails?: Email[];
     ticket_notice?: string;
@@ -543,6 +544,10 @@ export default function TicketsTable({
                                 <div>
                                     <p className="text-base font-medium text-muted-foreground mb-1">Priority</p>
                                     <p className="text-lg">{selectedTicket.priority || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-base font-medium text-muted-foreground mb-1">Recipient Email</p>
+                                    <p className="text-lg">{selectedTicket.recipient || '-'}</p>
                                 </div>
                                 <div>
                                     <p className="text-base font-medium text-muted-foreground mb-1">Assigned To</p>
