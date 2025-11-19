@@ -9,8 +9,8 @@ interface Ticket {
     ticket_name: string;
     status: string;
     priority: string;
-    opened_at: string;
-    closed_at: string;
+    downtime: string;
+    uptime: string;
     resolution_time: number;
     resolution_time_formatted: string;
     user: string;

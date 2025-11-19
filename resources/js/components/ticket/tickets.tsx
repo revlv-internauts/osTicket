@@ -66,10 +66,10 @@ interface Ticket {
     help_topic_relation?: HelpTopic;
     department: string;
     due_date?: string;
-    opened_at?: string;
+    downtime?: string;
     opened_by?: number;
     opened_by_user?: User;
-    closed_at?: string;
+    uptime?: string;
     closed_by?: number;
     closed_by_user?: User;
     assigned_to?: number;
@@ -89,7 +89,7 @@ interface TicketProps {
     caption?: string;
 }
 
-type SortField = 'ticket_name' | 'user' | 'assigned_to' | 'priority' | 'status' | 'opened_at' | 'closed_at';
+type SortField = 'ticket_name' | 'user' | 'assigned_to' | 'priority' | 'status' | 'downtime' | 'uptime';
 type SortDirection = 'asc' | 'desc' | null;
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -164,13 +164,13 @@ export default function TicketsTable({
                 aValue = a.status?.toLowerCase() || '';
                 bValue = b.status?.toLowerCase() || '';
                 break;
-            case 'opened_at':
-                aValue = a.opened_at ? new Date(a.opened_at).getTime() : 0;
-                bValue = b.opened_at ? new Date(b.opened_at).getTime() : 0;
+            case 'downtime':
+                aValue = a.downtime ? new Date(a.downtime).getTime() : 0;
+                bValue = b.downtime ? new Date(b.downtime).getTime() : 0;
                 break;
-            case 'closed_at':
-                aValue = a.closed_at ? new Date(a.closed_at).getTime() : 0;
-                bValue = b.closed_at ? new Date(b.closed_at).getTime() : 0;
+            case 'uptime':
+                aValue = a.uptime ? new Date(a.uptime).getTime() : 0;
+                bValue = b.uptime ? new Date(b.uptime).getTime() : 0;
                 break;
             default:
                 return 0;
@@ -348,11 +348,11 @@ export default function TicketsTable({
                                 <TableHead>
                                     <Button
                                         variant="ghost"
-                                        onClick={() => handleSort('user')}
+                                        onClick={() => handleSort('uptime')}
                                         className="h-8 px-2 hover:bg-transparent"
                                     >
-                                        Submitted By
-                                        {getSortIcon('user')}
+                                        Uptime
+                                        {getSortIcon('uptime')}
                                     </Button>
                                 </TableHead>
                             )}
@@ -360,11 +360,11 @@ export default function TicketsTable({
                                 <TableHead>
                                     <Button
                                         variant="ghost"
-                                        onClick={() => handleSort('assigned_to')}
+                                        onClick={() => handleSort('downtime')}
                                         className="h-8 px-2 hover:bg-transparent"
                                     >
-                                        Assigned To
-                                        {getSortIcon('assigned_to')}
+                                        Downtime
+                                        {getSortIcon('downtime')}
                                     </Button>
                                 </TableHead>
                             )}
@@ -391,21 +391,21 @@ export default function TicketsTable({
                             <TableHead>
                                 <Button
                                     variant="ghost"
-                                    onClick={() => handleSort('opened_at')}
+                                    onClick={() => handleSort('downtime')}
                                     className="h-8 px-2 hover:bg-transparent"
                                 >
-                                    Opened At
-                                    {getSortIcon('opened_at')}
+                                    Downtime
+                                    {getSortIcon('downtime')}
                                 </Button>
                             </TableHead>
                             <TableHead>
                                 <Button
                                     variant="ghost"
-                                    onClick={() => handleSort('closed_at')}
+                                    onClick={() => handleSort('uptime')}
                                     className="h-8 px-2 hover:bg-transparent"
                                 >
-                                    Closed At
-                                    {getSortIcon('closed_at')}
+                                    Uptime
+                                    {getSortIcon('uptime')}
                                 </Button>
                             </TableHead>
                             <TableHead className="text-center">Delete</TableHead>
@@ -441,8 +441,8 @@ export default function TicketsTable({
                                             {ticket.status || 'Unknown'}
                                         </span>
                                     </TableCell>
-                                    <TableCell>{formatDate(ticket.opened_at ?? '') || '-'}</TableCell>
-                                    <TableCell>{formatDate(ticket.closed_at ?? '') || '-'}</TableCell>
+                                    <TableCell>{formatDate(ticket.downtime ?? '') || '-'}</TableCell>
+                                    <TableCell>{formatDate(ticket.uptime ?? '') || '-'}</TableCell>
                                     <TableCell className="text-center">
                                         <Button
                                             variant="ghost"
@@ -570,18 +570,18 @@ export default function TicketsTable({
                             {/* Dates and Tracking */}
                             <div className="grid grid-cols-2 gap-6">
                                 <div>
-                                    <p className="text-base font-medium text-muted-foreground mb-1">Opened At</p>
-                                    <p className="text-lg">{formatDate(selectedTicket.opened_at ?? '') || '-'}</p>
+                                    <p className="text-base font-medium text-muted-foreground mb-1">Downtime</p>
+                                    <p className="text-lg">{formatDate(selectedTicket.downtime ?? '') || '-'}</p>
                                 </div>
                                 <div>
                                     <p className="text-base font-medium text-muted-foreground mb-1">Opened By</p>
                                     <p className="text-lg">{selectedTicket.opened_by_user?.name || '-'}</p>
                                 </div>
-                                {selectedTicket.closed_at && (
+                                {selectedTicket.uptime && (
                                     <>
                                         <div>
-                                            <p className="text-base font-medium text-muted-foreground mb-1">Closed At</p>
-                                            <p className="text-lg">{formatDate(selectedTicket.closed_at ?? '') || '-'}</p>
+                                            <p className="text-base font-medium text-muted-foreground mb-1">Uptime</p>
+                                            <p className="text-lg">{formatDate(selectedTicket.uptime ?? '') || '-'}</p>
                                         </div>
                                         <div>
                                             <p className="text-base font-medium text-muted-foreground mb-1">Closed By</p>

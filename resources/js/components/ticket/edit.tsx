@@ -28,9 +28,9 @@ type TicketData = {
     ticket_source: string;
     help_topic: number;
     department: string;
-    opened_at?: string | null;
+    downtime?: string | null;
     opened_by?: number | null;
-    closed_at?: string | null;
+    uptime?: string | null;
     closed_by?: number | null;
     assigned_to?: number | null;
     body?: string | null;
@@ -346,13 +346,13 @@ const TicketEdit: React.FC<Props> = ({
                             </div>
                         </div>
 
-                        {/* Opened At - Read Only */}
+                        {/* Downtime - Read Only */}
                         <div className="space-y-2">
-                            <Label>Opened At</Label>
+                            <Label>Downtime</Label>
                             <div className="p-2 bg-muted rounded-md">
                                 <span>
-                                    {ticket.opened_at 
-                                        ? format(parseISO(ticket.opened_at), "PPP p")
+                                    {ticket.downtime 
+                                        ? format(parseISO(ticket.downtime), "PPP p")
                                         : 'N/A'}
                                 </span>
                             </div>
@@ -366,13 +366,13 @@ const TicketEdit: React.FC<Props> = ({
                             </div>
                         </div>
 
-                        {/* Closed At - Read Only */}
-                        {ticket.closed_at && (
+                        {/* Uptime - Read Only */}
+                        {ticket.uptime && (
                             <div className="space-y-2">
-                                <Label>Closed At</Label>
+                                <Label>Uptime</Label>
                                 <div className="p-2 bg-muted rounded-md">
                                     <span>
-                                        {format(parseISO(ticket.closed_at), "PPP p")}
+                                        {format(parseISO(ticket.uptime), "PPP p")}
                                     </span>
                                 </div>
                             </div>

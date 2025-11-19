@@ -159,15 +159,15 @@
                 </div>
 
                 <div class="detail-row">
-                    <div class="label">Closed At</div>
-                    <div class="value">{{ $ticket->closed_at ? \Carbon\Carbon::parse($ticket->closed_at)->format('F j, Y g:i A') : 'N/A' }}</div>
+                    <div class="label">Uptime</div>
+                    <div class="value">{{ $ticket->uptime ? \Carbon\Carbon::parse($ticket->uptime)->format('F j, Y g:i A') : 'N/A' }}</div>
                 </div>
 
                 <div class="detail-row">
                     <div class="label">Resolution Time</div>
                     <div class="value">
-                        @if($ticket->created_at && $ticket->closed_at)
-                            {{ $ticket->created_at->diffForHumans(\Carbon\Carbon::parse($ticket->closed_at), true) }}
+                        @if($ticket->created_at && $ticket->uptime)
+                            {{ $ticket->created_at->diffForHumans(\Carbon\Carbon::parse($ticket->uptime), true) }}
                         @else
                             N/A
                         @endif

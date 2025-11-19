@@ -44,7 +44,7 @@ type Ticket = {
     ticket_source: string;
     help_topic: number;
     department: string;
-    opened_at?: string | null;
+    downtime?: string | null;
     assigned_to?: number | null;
     body?: string | null;
     status?: string | null;
@@ -80,7 +80,7 @@ const TicketCreate: React.FC<Props> = ({
         ticket_source: string;
         help_topic: number;
         department: string;
-        opened_at: string | null;
+        downtime: string | null;
         assigned_to: number | null;
         body: string | null;
         status: string | null;
@@ -92,7 +92,7 @@ const TicketCreate: React.FC<Props> = ({
         ticket_source: "Email",
         help_topic: 0,
         department: "NOC",
-        opened_at: null,
+        downtime: null,
         assigned_to: null,
         body: null,
         status: "Open",
@@ -155,7 +155,7 @@ const TicketCreate: React.FC<Props> = ({
             ticket_source: "Email",
             help_topic: 0,
             department: "NOC",
-            opened_at: null as string | null,
+            downtime: null as string | null,
             assigned_to: null as number | null,
             body: null as string | null,
             status: "Open" as string | null,
@@ -187,9 +187,9 @@ const TicketCreate: React.FC<Props> = ({
             const [hours, minutes] = selectedTime.split(':');
             const dateTime = new Date(selectedDate);
             dateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-            setData("opened_at", format(dateTime, "yyyy-MM-dd'T'HH:mm:ss"));
+            setData("downtime", format(dateTime, "yyyy-MM-dd'T'HH:mm:ss"));
         } else {
-            setData("opened_at", null);
+            setData("downtime", null);
         }
     };
 
@@ -274,7 +274,7 @@ const TicketCreate: React.FC<Props> = ({
         if (!data.ticket_source) newErrors.ticket_source = true;
         if (!data.help_topic) newErrors.help_topic = true;
         if (!data.department) newErrors.department = true;
-        if (!data.opened_at) newErrors.opened_at = true;
+        if (!data.downtime) newErrors.downtime = true;
         if (!data.priority) newErrors.priority = true;
         if (!data.assigned_to) newErrors.assigned_to = true;
         if (!data.body || data.body.trim() === '' || data.body === '<p></p>') newErrors.body = true;
@@ -286,7 +286,7 @@ const TicketCreate: React.FC<Props> = ({
             if (newErrors.ticket_source) toast.error("Ticket Source is required");
             if (newErrors.help_topic) toast.error("Help Topic is required");
             if (newErrors.department) toast.error("Department is required");
-            if (newErrors.opened_at) toast.error("Opened At date and time is required");
+            if (newErrors.downtime) toast.error("Downtime date and time is required");
             if (newErrors.priority) toast.error("Priority is required");
             if (newErrors.assigned_to) toast.error("Assigned To is required");
             if (newErrors.body) toast.error("Body is required");
@@ -650,13 +650,13 @@ const TicketCreate: React.FC<Props> = ({
                         </div>
 
 
-                        {/* Opened At - Date and Time */}
+                        {/* Downtime - Date and Time */}
                         <div className="space-y-2">
                             <Label 
-                                htmlFor="opened_at" 
-                                className={formErrors.opened_at ? "text-red-500" : ""}
+                                htmlFor="downtime" 
+                                className={formErrors.downtime ? "text-red-500" : ""}
                             >
-                                Opened At*
+                                Downtime*
                             </Label>
                             <div className="flex gap-2">
                                 <Popover>
@@ -667,7 +667,7 @@ const TicketCreate: React.FC<Props> = ({
                                             className={cn(
                                                 "flex-1 justify-start text-left font-normal h-10",
                                                 !date && "text-muted-foreground",
-                                                formErrors.opened_at && "border-red-500"
+                                                formErrors.downtime && "border-red-500"
                                             )}
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
@@ -737,16 +737,16 @@ const TicketCreate: React.FC<Props> = ({
                                         onChange={(e) => handleTimeChange(e.target.value)}
                                         className={cn(
                                             "pl-10 h-10 w-full",
-                                            formErrors.opened_at && "border-red-500"
+                                            formErrors.downtime && "border-red-500"
                                         )}
                                     />
                                 </div>
                             </div>
-                            {formErrors.opened_at && (
-                                <p className="text-xs text-red-500">Opened At date and time is required</p>
+                            {formErrors.downtime && (
+                                <p className="text-xs text-red-500">Downtime date and time is required</p>
                             )}
-                            {errors.opened_at && (
-                                <p className="text-xs text-red-500">{errors.opened_at}</p>
+                            {errors.downtime && (
+                                <p className="text-xs text-red-500">{errors.downtime}</p>
                             )}
                         </div>
 

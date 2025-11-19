@@ -12,8 +12,8 @@ class ComputationController extends Controller
     public function index(Request $request)
     {
         $tickets = Ticket::with(['user', 'assignedToUser', 'helpTopicRelation', 'openedByUser', 'closedByUser'])
-            ->whereNotNull('closed_at')
-            ->orderBy('closed_at', 'desc')
+            ->whereNotNull('uptime')
+            ->orderBy('uptime', 'desc')
             ->get();
 
         $ticketsWithResolution = $tickets->map(function ($ticket) {
@@ -24,8 +24,8 @@ class ComputationController extends Controller
                 'ticket_name' => $ticket->ticket_name,
                 'status' => $ticket->status,
                 'priority' => $ticket->priority,
-                'opened_at' => $ticket->opened_at ? $ticket->opened_at->format('M d, Y h:i A') : ($ticket->created_at ? $ticket->created_at->format('M d, Y h:i A') : 'N/A'),
-                'closed_at' => $ticket->closed_at ? $ticket->closed_at->format('M d, Y h:i A') : 'N/A',
+                'downtime' => $ticket->downtime ? $ticket->downtime->format('M d, Y h:i A') : ($ticket->created_at ? $ticket->created_at->format('M d, Y h:i A') : 'N/A'),
+                'uptime' => $ticket->uptime ? $ticket->uptime->format('M d, Y h:i A') : 'N/A',
                 'resolution_time' => $resolutionMinutes,
                 'resolution_time_formatted' => $this->formatMinutes($resolutionMinutes),
                 'user' => $ticket->user ? $ticket->user->name : 'N/A',
@@ -49,17 +49,15 @@ class ComputationController extends Controller
      */
     private function calculateResolutionTime($ticket): int
     {
-        if (!$ticket->closed_at) {
+        if (!$ticket->uptime) {
             return 0;
         }
 
-        $closedAt = Carbon::parse($ticket->closed_at);
+        $closedAt = Carbon::parse($ticket->uptime);
 
-        $openedAt = $ticket->opened_at 
-            ? Carbon::parse($ticket->opened_at) 
-            : Carbon::parse($ticket->created_at);
-
-        if ($closedAt->lessThan($openedAt)) {
+        $openedAt = $ticket->downtime
+            ? Carbon::parse($ticket->downtime)
+            : Carbon::parse($ticket->created_at);        if ($closedAt->lessThan($openedAt)) {
             $openedAt = Carbon::parse($ticket->created_at);
         }
 

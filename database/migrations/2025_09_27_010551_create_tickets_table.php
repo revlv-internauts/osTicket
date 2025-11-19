@@ -18,13 +18,13 @@ return new class extends Migration
             $table->string('ticket_source', 50);
             $table->foreignId('help_topic')->constrained('help_topics')->onDelete('cascade');
             $table->string('department', 100);
-            $table->timestamp('opened_at')->nullable();
+            $table->timestamp('downtime')->nullable();
             $table->foreignId('opened_by')->nullable()->constrained('users')->onDelete('set null');
-            $table->timestamp('closed_at')->nullable();
+            $table->timestamp('uptime')->nullable();
             $table->foreignId('closed_by')->nullable()->constrained('users')->onDelete('set null');
             $table->integer('resolution_time')->nullable();
             $table->foreignId('assigned_to')->nullable()->constrained('users')->onDelete('set null');
-            $table->text('body')->nullable();
+            $table->longText('body')->nullable();
             $table->json('image_paths')->nullable();
             $table->string('status', 50)->default('Open');
             $table->string('priority', 50)->nullable();

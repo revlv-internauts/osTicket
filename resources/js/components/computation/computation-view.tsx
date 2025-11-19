@@ -7,8 +7,8 @@ interface Ticket {
     ticket_name: string;
     status: string;
     priority: string;
-    opened_at: string;
-    closed_at: string;
+    downtime: string;
+    uptime: string;
     resolution_time: number;
     resolution_time_formatted: string;
     user: string;
@@ -65,7 +65,7 @@ export default function ComputationView({ tickets, statistics }: ComputationView
     return (
         <div className="space-y-6">
             {/* Statistics Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2">
                 <Card>
                     <CardHeader className="pb-2">
                         <CardDescription>Total Tickets</CardDescription>
@@ -77,20 +77,6 @@ export default function ComputationView({ tickets, statistics }: ComputationView
                     <CardHeader className="pb-2">
                         <CardDescription>Average Resolution Time</CardDescription>
                         <CardTitle className="text-2xl">{statistics.average_resolution_time} min</CardTitle>
-                    </CardHeader>
-                </Card>
-
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Fastest Resolution</CardDescription>
-                        <CardTitle className="text-2xl">{statistics.fastest_resolution_time} min</CardTitle>
-                    </CardHeader>
-                </Card>
-
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Slowest Resolution</CardDescription>
-                        <CardTitle className="text-2xl">{statistics.slowest_resolution_time} min</CardTitle>
                     </CardHeader>
                 </Card>
             </div>
@@ -111,8 +97,8 @@ export default function ComputationView({ tickets, statistics }: ComputationView
                                     <TableHead>Ticket</TableHead>
                                     <TableHead>Priority</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead>Opened At</TableHead>
-                                    <TableHead>Closed At</TableHead>
+                                    <TableHead>Downtime</TableHead>
+                                    <TableHead>Uptime</TableHead>
                                     <TableHead>Resolution Time</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -137,8 +123,8 @@ export default function ComputationView({ tickets, statistics }: ComputationView
                                                     {ticket.status}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="whitespace-nowrap">{ticket.opened_at}</TableCell>
-                                            <TableCell className="whitespace-nowrap">{ticket.closed_at}</TableCell>
+                                            <TableCell className="whitespace-nowrap">{ticket.downtime}</TableCell>
+                                            <TableCell className="whitespace-nowrap">{ticket.uptime}</TableCell>
                                             <TableCell className="font-semibold whitespace-nowrap">
                                                 {ticket.resolution_time} minutes
                                             </TableCell>

@@ -21,9 +21,9 @@ class Ticket extends Model
         'ticket_source',
         'help_topic',
         'department',
-        'opened_at',
+        'downtime',
         'opened_by',
-        'closed_at',
+        'uptime',
         'closed_by',
         'resolution_time',
         'assigned_to',
@@ -40,22 +40,22 @@ class Ticket extends Model
      */
     protected $casts = [
         'cc' => 'array', // Cast cc to array
-        'opened_at' => 'datetime',
-        'closed_at' => 'datetime',
+        'downtime' => 'datetime',
+        'uptime' => 'datetime',
         'due_date' => 'datetime',
         'resolution_time' => 'integer',
     ];
 
     /**
-     * Boot function to set opened_at when creating
+     * Boot function to set downtime when creating
      */
     protected static function boot()
     {
         parent::boot();
 
         static::creating(function ($ticket) {
-            if (!$ticket->opened_at) {
-                $ticket->opened_at = now();
+            if (!$ticket->downtime) {
+                $ticket->downtime = now();
             }
         });
     }
@@ -89,7 +89,7 @@ class Ticket extends Model
      */
     public function ccEmails()
     {
-        return $this->belongsToMany(Email::class, 'ticket_cc_emails', 'ticket_id', 'email_id');
+        return $this->belongsToMany(Email::class, 'email_recipients', 'ticket_id', 'email_id');
     }
 
     /**
