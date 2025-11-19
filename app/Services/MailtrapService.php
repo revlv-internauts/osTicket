@@ -72,11 +72,11 @@ class MailtrapService
     }
     
     /**
-     * Embed images as base64 in the response
+     * Embed images as base64 in the body
      */
     protected function embedImagesAsBase64($ticket)
     {
-        $response = $ticket->response;
+        $body = $ticket->body;
         
         if ($ticket->image_paths) {
             $imagePaths = json_decode($ticket->image_paths, true);
@@ -92,20 +92,20 @@ class MailtrapService
                     
                     // Replace the storage URL with base64
                     $storageUrl = asset('storage/' . $path);
-                    $response = str_replace($storageUrl, $base64Src, $response);
+                    $body = str_replace($storageUrl, $base64Src, $body);
                     
                     // Also try to match just the filename
                     $filename = basename($path);
-                    $response = preg_replace(
+                    $body = preg_replace(
                         '/src=["\']([^"\']*' . preg_quote($filename, '/') . ')["\']/',
                         'src="' . $base64Src . '"',
-                        $response
+                        $body
                     );
                 }
             }
         }
         
-        return $response;
+        return $body;
     }
 
     /**

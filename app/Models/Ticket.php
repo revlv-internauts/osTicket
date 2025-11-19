@@ -27,7 +27,7 @@ class Ticket extends Model
         'closed_by',
         'resolution_time',
         'assigned_to',
-        'response',
+        'body',
         'image_paths',
         'status',
         'priority',

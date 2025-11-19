@@ -46,7 +46,7 @@ type Ticket = {
     department: string;
     opened_at?: string | null;
     assigned_to?: number | null;
-    response?: string | null;
+    body?: string | null;
     status?: string | null;
     priority?: string | null;
     images?: File[];
@@ -82,7 +82,7 @@ const TicketCreate: React.FC<Props> = ({
         department: string;
         opened_at: string | null;
         assigned_to: number | null;
-        response: string | null;
+        body: string | null;
         status: string | null;
         priority: string | null;
         images: File[];
@@ -94,7 +94,7 @@ const TicketCreate: React.FC<Props> = ({
         department: "NOC",
         opened_at: null,
         assigned_to: null,
-        response: null,
+        body: null,
         status: "Open",
         priority: null,
         images: [],
@@ -131,14 +131,14 @@ const TicketCreate: React.FC<Props> = ({
                 openOnClick: false,
             }),
         ],
-        content: data.response || '',
+        content: data.body || '',
         editorProps: {
             attributes: {
                 class: 'prose prose-sm max-w-none focus:outline-none min-h-[150px] p-4',
             },
         },
         onUpdate: ({ editor }) => {
-            setData('response', editor.getHTML());
+            setData('body', editor.getHTML());
         },
     });
 
@@ -157,7 +157,7 @@ const TicketCreate: React.FC<Props> = ({
             department: "NOC",
             opened_at: null as string | null,
             assigned_to: null as number | null,
-            response: null as string | null,
+            body: null as string | null,
             status: "Open" as string | null,
             priority: null as string | null,
             images: [] as File[],
@@ -277,7 +277,7 @@ const TicketCreate: React.FC<Props> = ({
         if (!data.opened_at) newErrors.opened_at = true;
         if (!data.priority) newErrors.priority = true;
         if (!data.assigned_to) newErrors.assigned_to = true;
-        if (!data.response || data.response.trim() === '' || data.response === '<p></p>') newErrors.response = true;
+        if (!data.body || data.body.trim() === '' || data.body === '<p></p>') newErrors.body = true;
         if (!data.cc || data.cc.length === 0) newErrors.cc = true;
 
         setFormErrors(newErrors);
@@ -289,7 +289,7 @@ const TicketCreate: React.FC<Props> = ({
             if (newErrors.opened_at) toast.error("Opened At date and time is required");
             if (newErrors.priority) toast.error("Priority is required");
             if (newErrors.assigned_to) toast.error("Assigned To is required");
-            if (newErrors.response) toast.error("Response is required");
+            if (newErrors.body) toast.error("Body is required");
             if (newErrors.cc) toast.error("At least one CC email is required");
         }
         
@@ -372,9 +372,6 @@ const TicketCreate: React.FC<Props> = ({
         <Card className="w-full">
             <CardHeader>
                 <CardTitle>Create New Support Ticket</CardTitle>
-                <CardDescription>
-                    Fill in the details below to create a new support ticket.
-                </CardDescription>
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -833,19 +830,19 @@ const TicketCreate: React.FC<Props> = ({
                         </div>
                     </div>
 
-                    {/* Response - Tiptap Editor */}
+                    {/* Body - Tiptap Editor */}
                     <div className="space-y-2">
                         <Label 
-                            htmlFor="response" 
-                            className={formErrors.response ? "text-red-500" : ""}
+                            htmlFor="body" 
+                            className={formErrors.body ? "text-red-500" : ""}
                         >
-                            Response*
+                            Body*
                         </Label>
                         
                         {/* Toolbar */}
                         <div className={cn(
                             "border rounded-t-lg bg-muted/50 p-2 flex flex-wrap gap-1",
-                            formErrors.response && "border-red-500"
+                            formErrors.body && "border-red-500"
                         )}>
                             <Button
                                 type="button"
@@ -923,7 +920,7 @@ const TicketCreate: React.FC<Props> = ({
                         {/* Editor */}
                         <div className={cn(
                             "border rounded-b-lg bg-background",
-                            formErrors.response && "border-red-500"
+                            formErrors.body && "border-red-500"
                         )}>
                             <style>{`
                                 .ProseMirror {
@@ -1014,11 +1011,11 @@ const TicketCreate: React.FC<Props> = ({
                             `}</style>
                             <EditorContent editor={editor} />
                         </div>
-                        {formErrors.response && (
-                            <p className="text-xs text-red-500">Response is required</p>
+                        {formErrors.body && (
+                            <p className="text-xs text-red-500">Body is required</p>
                         )}
-                        {errors.response && (
-                            <p className="text-xs text-red-500">{errors.response}</p>
+                        {errors.body && (
+                            <p className="text-xs text-red-500">{errors.body}</p>
                         )}
                         {data.images && data.images.length > 0 && (
                             <p className="text-xs text-muted-foreground mt-2">

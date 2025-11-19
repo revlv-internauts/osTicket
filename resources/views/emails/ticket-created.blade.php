@@ -20,7 +20,7 @@
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
         }
         .header {
-            background-color: #4f46e5;
+            background-color: #2563eb;
             color: #fff;
             padding: 25px 30px;
             font-size: 22px;
@@ -109,7 +109,7 @@
             border-radius: 5px;
             border: 1px solid #e5e7eb;
         }
-        .response-content {
+        .body-content {
             background-color: #ffffff;
             padding: 15px;
             border-radius: 5px;
@@ -181,18 +181,15 @@
                 </div>
             </div>
 
-            @if($ticket->response)
+            @if($ticket->body)
             <div class="ticket-section">
-                <h3>Initial Response</h3>
-                <div class="response-content">
-                    {!! $processedResponse ?? strip_tags($ticket->response, '<p><br><strong><em><ul><ol><li><img>') !!}
+                <h3>Initial Body</h3>
+                <div class="body-content">
+                    {!! $processedResponse ?? strip_tags($ticket->body, '<p><br><strong><em><ul><ol><li><img>') !!}
                 </div>
             </div>
             @endif
 
-            <p style="margin-top: 20px; color:#6b7280;">
-                <small>Please click the button above to view the full ticket details and respond.</small>
-            </p>
         </div>
 
         <div class="footer">

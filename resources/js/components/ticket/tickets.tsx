@@ -75,7 +75,7 @@ interface Ticket {
     assigned_to?: number;
     assigned_to_user?: User;
     canned_response?: string;
-    response?: string;
+    body?: string;
     status: string;
     priority?: string;
     created_at: string;
@@ -288,7 +288,7 @@ export default function TicketsTable({
         extensions: [
             StarterKit,
             Placeholder.configure({
-                placeholder: 'No response provided',
+                placeholder: 'No body provided',
             }),
             Underline,
             TiptapImage.configure({
@@ -299,7 +299,7 @@ export default function TicketsTable({
                 openOnClick: false,
             }),
         ],
-        content: selectedTicket?.response || '<p>No response provided</p>',
+        content: selectedTicket?.body || '<p>No body provided</p>',
         editable: false,
         editorProps: {
             attributes: {
@@ -311,7 +311,7 @@ export default function TicketsTable({
     // Update editor content when ticket changes
     useEffect(() => {
         if (editor && selectedTicket) {
-            editor.commands.setContent(selectedTicket.response || '<p>No response provided</p>');
+            editor.commands.setContent(selectedTicket.body || '<p>No body provided</p>');
         }
     }, [editor, selectedTicket]);
 
@@ -593,9 +593,9 @@ export default function TicketsTable({
 
                             <Separator />
 
-                            {/* Response with Tiptap Editor */}
+                            {/* Body with Tiptap Editor */}
                             <div>
-                                <p className="text-base font-medium text-muted-foreground mb-3">Response</p>
+                                <p className="text-base font-medium text-muted-foreground mb-3">Body</p>
                                 <div className="bg-background border rounded-lg p-6">
                                     <style>{`
                                         .ProseMirror {

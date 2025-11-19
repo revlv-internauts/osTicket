@@ -15,7 +15,7 @@ import TiptapImage from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 
 type TicketFormData = {
-    response?: string | null;
+    body?: string | null;
     status?: string | null;
     images?: File[];
 };
@@ -33,7 +33,7 @@ type TicketData = {
     closed_at?: string | null;
     closed_by?: number | null;
     assigned_to?: number | null;
-    response?: string | null;
+    body?: string | null;
     status?: string | null;
     priority?: string | null;
     created_at: string;
@@ -58,7 +58,7 @@ const TicketEdit: React.FC<Props> = ({
     onSuccess
 }) => {
     const [data, setData] = useState<TicketFormData>({
-        response: ticket.response,
+        body: ticket.body,
         status: ticket.status,
         images: [] as File[],
     });
@@ -68,12 +68,12 @@ const TicketEdit: React.FC<Props> = ({
 
     const isTicketClosed = ticket.status === 'Closed';
 
-    // Tiptap editor for response editing
+    // Tiptap editor for body editing
     const editor = useEditor({
         extensions: [
             StarterKit,
             Placeholder.configure({
-                placeholder: 'Add your detailed response or notes here...',
+                placeholder: 'Add your detailed body or notes here...',
             }),
             Underline,
             TiptapImage.configure({
@@ -84,7 +84,7 @@ const TicketEdit: React.FC<Props> = ({
                 openOnClick: false,
             }),
         ],
-        content: data.response || '',
+        content: data.body || '',
         editable: !isTicketClosed,
         editorProps: {
             attributes: {
@@ -92,7 +92,7 @@ const TicketEdit: React.FC<Props> = ({
             },
         },
         onUpdate: ({ editor }) => {
-            setData(prev => ({ ...prev, response: editor.getHTML() }));
+            setData(prev => ({ ...prev, body: editor.getHTML() }));
         },
     });
 
@@ -159,7 +159,7 @@ const TicketEdit: React.FC<Props> = ({
         setProcessing(true);
         const formData = new FormData();
         formData.append('_method', 'PUT');
-        formData.append('response', data.response || '');
+        formData.append('body', data.body || '');
         formData.append('status', 'Closed');
         
         if (data.images && data.images.length > 0) {
@@ -197,7 +197,7 @@ const TicketEdit: React.FC<Props> = ({
         setProcessing(true);
         const formData = new FormData();
         formData.append('_method', 'PUT');
-        formData.append('response', data.response || '');
+        formData.append('body', data.body || '');
         formData.append('status', 'Open');
         
         if (data.images && data.images.length > 0) {
@@ -237,7 +237,7 @@ const TicketEdit: React.FC<Props> = ({
 
         const formData = new FormData();
         formData.append('_method', 'PUT');
-        formData.append('response', data.response || '');
+        formData.append('body', data.body || '');
         
         if (data.images && data.images.length > 0) {
             data.images.forEach((image, index) => {
@@ -405,9 +405,9 @@ const TicketEdit: React.FC<Props> = ({
                         </div>
                     </div>
 
-                    {/* Response - Tiptap Editor */}
+                    {/* Body - Tiptap Editor */}
                     <div className="space-y-2">
-                        <Label htmlFor="response">Add/Edit Response</Label>
+                        <Label htmlFor="body">Add/Edit Body</Label>
                         
                         {/* Toolbar */}
                         {!isTicketClosed && (
@@ -577,8 +577,8 @@ const TicketEdit: React.FC<Props> = ({
                             `}</style>
                             <EditorContent editor={editor} />
                         </div>
-                        {errors.response && (
-                            <p className="text-xs text-red-500">{errors.response}</p>
+                        {errors.body && (
+                            <p className="text-xs text-red-500">{errors.body}</p>
                         )}
                         {data.images && data.images.length > 0 && (
                             <p className="text-xs text-muted-foreground mt-2">
@@ -608,7 +608,14 @@ const TicketEdit: React.FC<Props> = ({
                             {processing ? "Reopening..." : "Reopen Ticket"}
                         </Button>
                     ) : (
-                        <>
+                        <>                            
+                            <Button
+                                onClick={handleSubmit}
+                                type="submit"
+                                disabled={processing}
+                            >
+                                {processing ? "Updating..." : "Update Body"}
+                            </Button>
                             <Button
                                 variant="destructive"
                                 onClick={handleCloseTicket}
@@ -618,13 +625,7 @@ const TicketEdit: React.FC<Props> = ({
                                 <XCircle className="h-4 w-4 mr-2" />
                                 {processing ? "Closing..." : "Close Ticket"}
                             </Button>
-                            <Button
-                                onClick={handleSubmit}
-                                type="submit"
-                                disabled={processing}
-                            >
-                                {processing ? "Updating..." : "Update Response"}
-                            </Button>
+
                         </>
                     )}
                 </div>

@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('ticket_cc_emails', function (Blueprint $table) {
+        Schema::create('email_recipients', function (Blueprint $table) {
             $table->id();
             $table->foreignId('ticket_id')->constrained()->onDelete('cascade');
             $table->foreignId('email_id')->constrained()->onDelete('cascade');

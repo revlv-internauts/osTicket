@@ -72,9 +72,6 @@ export function ChartAreaInteractive({ data = [] }: { data?: any[] }) {
       <CardHeader className="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
         <div className="grid flex-1 gap-1">
           <CardTitle>Ticket Statistics</CardTitle>
-          <CardDescription>
-            Showing opened and closed tickets created per day
-          </CardDescription>
         </div>
         <Select value={timeRange} onValueChange={setTimeRange}>
           <SelectTrigger

@@ -113,7 +113,7 @@ class TicketController extends Controller
             'department'    => 'required|string',
             'opened_at'     => 'required|date',
             'assigned_to'   => 'required|exists:users,id',
-            'response'      => 'required|string',
+            'body'          => 'required|string',
             'status'        => 'nullable|string',
             'priority'      => 'required|string',
             'images.*'      => 'nullable|file|mimes:jpeg,png,jpg,gif,pdf,doc,docx|max:10240',
@@ -132,7 +132,7 @@ class TicketController extends Controller
         $validated['ticket_name'] = $ticketName;
         $validated['opened_by'] = Auth::id();
         
-        $processedResponse = $validated['response'];
+        $processedResponse = $validated['body'];
         $imagePaths = [];
         
         if (!empty($processedResponse)) {
@@ -161,7 +161,7 @@ class TicketController extends Controller
             }
         }
         
-        $validated['response'] = $processedResponse;
+        $validated['body'] = $processedResponse;
         $validated['image_paths'] = !empty($imagePaths) ? json_encode($imagePaths) : null;
         
         $ccEmails = $validated['cc'] ?? [];
@@ -244,7 +244,7 @@ class TicketController extends Controller
     public function update(Request $request, Ticket $ticket)
     {
         $validated = $request->validate([
-            'response' => 'nullable|string',
+            'body' => 'nullable|string',
             'status' => 'nullable|string|in:Open,Closed',
             'images' => 'nullable|array',
             'images.*' => 'image|max:2048',
@@ -253,8 +253,8 @@ class TicketController extends Controller
         $updateData = [];
         $changes = [];
 
-        if (isset($validated['response'])) {
-            $processedResponse = $validated['response'];
+        if (isset($validated['body'])) {
+            $processedResponse = $validated['body'];
             $imagePaths = json_decode($ticket->image_paths ?? '[]', true);
             
             preg_match_all('/<img[^>]+src="data:image\/([^;]+);base64,([^"]+)"[^>]*>/i', $processedResponse, $matches);
@@ -274,9 +274,9 @@ class TicketController extends Controller
                 $processedResponse = str_replace($fullMatch, '<img src="' . $url . '" alt="Ticket Image" />', $processedResponse);
             }
             
-            $updateData['response'] = $processedResponse;
+            $updateData['body'] = $processedResponse;
             $updateData['image_paths'] = !empty($imagePaths) ? json_encode($imagePaths) : null;
-            $changes['Response'] = 'Updated';
+            $changes['Body'] = 'Updated';
         }
 
         $wasClosing = false;
