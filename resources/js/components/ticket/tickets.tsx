@@ -7,7 +7,7 @@ import { usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Pencil, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Search } from 'lucide-react';
+import { Pencil, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Search, CheckCircle, XCircle, Paperclip } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -77,6 +77,7 @@ interface Ticket {
     assigned_to_user?: User;
     canned_response?: string;
     body?: string;
+    image_paths?: string;
     status: string;
     priority?: string;
     created_at: string;
@@ -123,6 +124,7 @@ export default function TicketsTable({
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [editMode, setEditMode] = useState<'update' | 'close' | 'reopen' | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [ticketToDelete, setTicketToDelete] = useState<Ticket | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -233,8 +235,17 @@ export default function TicketsTable({
         setSelectedTicket(null);
     };
 
-    const handleEditFromDialog = () => {
+    const handleUpdateFromDialog = () => {
         if (selectedTicket) {
+            setEditMode('update');
+            setDialogOpen(false);
+            setEditDialogOpen(true);
+        }
+    };
+
+    const handleCloseFromDialog = () => {
+        if (selectedTicket) {
+            setEditMode(selectedTicket.status === 'Closed' ? 'reopen' : 'close');
             setDialogOpen(false);
             setEditDialogOpen(true);
         }
@@ -273,17 +284,17 @@ export default function TicketsTable({
         });
     };
 
-    const handleCloseEditDialog = () => {
-        setEditDialogOpen(false);
-        setSelectedTicket(null);
-    };
-
     const handleEditSuccess = () => {
         setEditDialogOpen(false);
         setSelectedTicket(null);
+        setEditMode(null);
         router.reload({ only: ['tickets'] });
     };
 
+    const handleCloseEditDialog = () => {
+        setEditDialogOpen(false);
+        setEditMode(null);
+    };
 
     const editor = useEditor({
         extensions: [
@@ -688,33 +699,44 @@ export default function TicketsTable({
                         </div>
                     )}
 
-                    <DialogFooter className="flex gap-2">
-                        <Button variant="outline" onClick={handleCloseDialog} className="text-base px-6 py-2">
-                            Close
-                        </Button>                        
-                        <Button onClick={handleEditFromDialog} className="text-base px-6 py-2">
-                            <Pencil className="h-5 w-5 mr-2" />
-                            Edit Ticket
-                        </Button>
-                        <Button 
-                            variant="destructive" 
-                            onClick={handleDeleteFromDialog} 
-                            className="text-base px-6 py-2"
-                        >
-                            <Trash2 className="h-5 w-5 mr-2" />
-                            Delete
-                        </Button>
+                    <DialogFooter className="mt-6">
+                        <div className="flex flex-col sm:flex-row w-full justify-between gap-2">
+                            <Button variant="outline" onClick={handleCloseDialog} className="text-base px-6 py-2">
+                                Close
+                            </Button>
+                            <div className="flex gap-2">
+                                <Button onClick={handleUpdateFromDialog} className="text-base px-6 py-2">
+                                    <Pencil className="h-5 w-5 mr-2" />
+                                    Update Ticket
+                                </Button>
+                                <Button 
+                                    variant={selectedTicket?.status === 'Closed' ? 'default' : 'destructive'}
+                                    onClick={handleCloseFromDialog} 
+                                    className="text-base px-6 py-2"
+                                >
+                                    {selectedTicket?.status === 'Closed' ? (
+                                        <><CheckCircle className="h-5 w-5 mr-2" />Reopen Ticket</>
+                                    ) : (
+                                        <><XCircle className="h-5 w-5 mr-2" />Close Ticket</>
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             {/* Edit Ticket Dialog */}
-            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+            <Dialog open={editDialogOpen} onOpenChange={handleCloseEditDialog}>
                 <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle className="text-2xl">Edit Ticket</DialogTitle>
+                        <DialogTitle className="text-2xl">
+                            {editMode === 'update' ? 'Update Ticket' : editMode === 'close' ? 'Close Ticket' : 'Reopen Ticket'}
+                        </DialogTitle>
                         <DialogDescription>
-                            Make changes to the ticket information
+                            {editMode === 'update' ? 'Make changes to the ticket information' : 
+                             editMode === 'close' ? 'Add final notes and close the ticket' : 
+                             'Add notes and reopen the ticket'}
                         </DialogDescription>
                     </DialogHeader>
                     {selectedTicket && (
@@ -722,6 +744,7 @@ export default function TicketsTable({
                             ticket={selectedTicket}
                             onSuccess={handleEditSuccess}
                             redirectUrl={null}
+                            mode={editMode}
                         />
                     )}
                 </DialogContent>

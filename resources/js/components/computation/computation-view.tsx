@@ -76,7 +76,12 @@ export default function ComputationView({ tickets, statistics }: ComputationView
                 <Card>
                     <CardHeader className="pb-2">
                         <CardDescription>Average Resolution Time</CardDescription>
-                        <CardTitle className="text-2xl">{statistics.average_resolution_time} min</CardTitle>
+                        <CardTitle className="text-2xl">
+                            {Math.floor(statistics.average_resolution_time / 60)}h {statistics.average_resolution_time % 60}m 
+                            <span className="text-lg text-muted-foreground ml-2">
+                                ({statistics.average_resolution_time} min)
+                            </span>
+                        </CardTitle>
                     </CardHeader>
                 </Card>
             </div>

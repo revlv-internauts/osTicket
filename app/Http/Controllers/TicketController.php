@@ -117,8 +117,22 @@ class TicketController extends Controller
             'body'          => 'required|string',
             'status'        => 'nullable|string',
             'priority'      => 'required|string',
-            'images.*'      => 'nullable|file|mimes:jpeg,png,jpg,gif,pdf,doc,docx|max:10240',
+            'images.*'      => 'nullable|file|max:8192',
+        ], [
+            'images.*.max' => 'Each image must not exceed 8MB.',
         ]);
+        
+        // Validate total file size (8MB)
+        if ($request->hasFile('images')) {
+            $totalSize = 0;
+            foreach ($request->file('images') as $image) {
+                $totalSize += $image->getSize();
+            }
+            $maxTotalSize = 8 * 1024 * 1024; // 8MB in bytes
+            if ($totalSize > $maxTotalSize) {
+                return back()->withErrors(['images' => 'Total attachment size exceeds 8MB limit. Please reduce the number or size of images.']);
+            }
+        }
 
         if (Auth::id() != $validated['user_id']) {
             return back()->withErrors(['user_id' => 'You cannot create tickets for other users.']);
@@ -257,8 +271,22 @@ class TicketController extends Controller
             'assigned_to' => 'nullable|exists:users,id',
             'priority' => 'nullable|string|in:Low,Medium,High',
             'images' => 'nullable|array',
-            'images.*' => 'image|max:2048',
+            'images.*' => 'nullable|file|max:8192',
+        ], [
+            'images.*.max' => 'Each image must not exceed 8MB.',
         ]);
+        
+        // Validate total file size (8MB)
+        if ($request->hasFile('images')) {
+            $totalSize = 0;
+            foreach ($request->file('images') as $image) {
+                $totalSize += $image->getSize();
+            }
+            $maxTotalSize = 8 * 1024 * 1024; // 8MB in bytes
+            if ($totalSize > $maxTotalSize) {
+                return back()->withErrors(['images' => 'Total attachment size exceeds 8MB limit. Please reduce the number or size of images.']);
+            }
+        }
 
         $updateData = [];
         $changes = [];
@@ -399,5 +427,38 @@ class TicketController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Failed to delete ticket: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Download a ticket attachment
+     */
+    public function downloadAttachment(Ticket $ticket, $filename)
+    {
+        if (!$ticket->image_paths) {
+            abort(404, 'No attachments found');
+        }
+
+        $imagePaths = json_decode($ticket->image_paths, true);
+        
+        // Find the file path that matches the filename
+        $filePath = null;
+        foreach ($imagePaths as $path) {
+            if (basename($path) === $filename) {
+                $filePath = $path;
+                break;
+            }
+        }
+
+        if (!$filePath) {
+            abort(404, 'File not found');
+        }
+
+        $fullPath = storage_path('app/public/' . $filePath);
+
+        if (!file_exists($fullPath)) {
+            abort(404, 'File not found on server');
+        }
+
+        return response()->download($fullPath, $filename);
     }
 }

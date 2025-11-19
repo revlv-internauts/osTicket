@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { CheckCircle, XCircle, Bold, Italic, List, ListOrdered, Heading1, Heading2, Heading3, Code, Quote, Underline as UnderlineIcon, Image as ImageIcon, Paperclip } from "lucide-react";
+import { CheckCircle, XCircle, Bold, Italic, List, ListOrdered, Heading1, Heading2, Heading3, Code, Quote, Underline as UnderlineIcon, Image as ImageIcon } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { router, usePage } from "@inertiajs/react";
 import { toast } from "sonner";
@@ -60,12 +60,14 @@ type Props = {
     ticket: TicketData;
     redirectUrl?: string | null;
     onSuccess?: () => void;
+    mode?: 'update' | 'close' | 'reopen' | null;
 };
 
 const TicketEdit: React.FC<Props> = ({
     ticket,
     redirectUrl = "/tickets",
-    onSuccess
+    onSuccess,
+    mode = null
 }) => {
     const { users = [] } = usePage().props as any;
     
@@ -128,46 +130,46 @@ const TicketEdit: React.FC<Props> = ({
             const files = (e.target as HTMLInputElement).files;
             if (!files) return;
 
-            Array.from(files).forEach(file => {
+            const currentImages = data.images || [];
+            const newFiles: File[] = [];
+            
+            for (const file of Array.from(files)) {
+                // Check individual file size (8MB)
+                const maxFileSize = 8 * 1024 * 1024; // 8MB
+                if (file.size > maxFileSize) {
+                    toast.error(`File "${file.name}" exceeds 8MB limit`);
+                    continue;
+                }
+                
+                newFiles.push(file);
+            }
+            
+            // Check total size (8MB)
+            const totalSize = [...currentImages, ...newFiles].reduce((sum, f) => sum + f.size, 0);
+            const maxTotalSize = 8 * 1024 * 1024; // 8MB
+            
+            if (totalSize > maxTotalSize) {
+                toast.error('Total file size exceeds 8MB limit');
+                return;
+            }
+
+            newFiles.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const base64 = e.target?.result as string;
                     editor?.chain().focus().setImage({ src: base64 }).run();
                 };
                 reader.readAsDataURL(file);
-
-                // Also add to images array for upload
-                const currentImages = data.images || [];
-                setData(prev => ({ ...prev, images: [...currentImages, file] }));
             });
+
+            // Also add to images array for upload
+            setData(prev => ({ ...prev, images: [...currentImages, ...newFiles] }));
         };
 
         input.click();
     };
 
-    const handleEditorFileUpload = () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '*/*';
-        input.multiple = true;
-        
-        input.onchange = async (e) => {
-            const files = (e.target as HTMLInputElement).files;
-            if (!files) return;
 
-            Array.from(files).forEach(file => {
-                const fileName = file.name;
-                const fileSize = (file.size / 1024).toFixed(2) + ' KB';
-                editor?.chain().focus().insertContent(`<p>📎 <a href="#">${fileName}</a> (${fileSize})</p>`).run();
-
-                // Add to images array for upload
-                const currentImages = data.images || [];
-                setData(prev => ({ ...prev, images: [...currentImages, file] }));
-            });
-        };
-
-        input.click();
-    };
 
     const handleCloseTicket = () => {
         setProcessing(true);
@@ -535,14 +537,6 @@ const TicketEdit: React.FC<Props> = ({
                                 >
                                     <ImageIcon className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={handleEditorFileUpload}
-                                >
-                                    <Paperclip className="h-4 w-4" />
-                                </Button>
                             </div>
                         )}
 
@@ -648,16 +642,29 @@ const TicketEdit: React.FC<Props> = ({
                     </div>
                 </form>
             </CardContent>
-            <CardFooter className="flex justify-between">
-                <Button
-                    variant="outline"
-                    onClick={() => router.visit(redirectUrl || "/tickets")}
-                    type="button"
-                >
-                    Back
-                </Button>
+            <CardFooter className="flex justify-end">
                 <div className="flex gap-2">
-                    {isTicketClosed ? (
+                    {mode === 'update' && (
+                        <Button
+                            onClick={handleSubmit}
+                            type="submit"
+                            disabled={processing}
+                        >
+                            {processing ? "Updating..." : "Update Ticket"}
+                        </Button>
+                    )}
+                    {mode === 'close' && (
+                        <Button
+                            variant="destructive"
+                            onClick={handleCloseTicket}
+                            type="button"
+                            disabled={processing}
+                        >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            {processing ? "Closing..." : "Close Ticket"}
+                        </Button>
+                    )}
+                    {mode === 'reopen' && (
                         <Button
                             variant="default"
                             onClick={handleReopenTicket}
@@ -667,25 +674,39 @@ const TicketEdit: React.FC<Props> = ({
                             <CheckCircle className="h-4 w-4 mr-2" />
                             {processing ? "Reopening..." : "Reopen Ticket"}
                         </Button>
-                    ) : (
-                        <>                            
-                            <Button
-                                onClick={handleSubmit}
-                                type="submit"
-                                disabled={processing}
-                            >
-                                {processing ? "Updating..." : "Update Body"}
-                            </Button>
-                            <Button
-                                variant="destructive"
-                                onClick={handleCloseTicket}
-                                type="button"
-                                disabled={processing}
-                            >
-                                <XCircle className="h-4 w-4 mr-2" />
-                                {processing ? "Closing..." : "Close Ticket"}
-                            </Button>
-
+                    )}
+                    {!mode && (
+                        <>
+                            {isTicketClosed ? (
+                                <Button
+                                    variant="default"
+                                    onClick={handleReopenTicket}
+                                    type="button"
+                                    disabled={processing}
+                                >
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    {processing ? "Reopening..." : "Reopen Ticket"}
+                                </Button>
+                            ) : (
+                                <>                            
+                                    <Button
+                                        onClick={handleSubmit}
+                                        type="submit"
+                                        disabled={processing}
+                                    >
+                                        {processing ? "Updating..." : "Update Body"}
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        onClick={handleCloseTicket}
+                                        type="button"
+                                        disabled={processing}
+                                    >
+                                        <XCircle className="h-4 w-4 mr-2" />
+                                        {processing ? "Closing..." : "Close Ticket"}
+                                    </Button>
+                                </>
+                            )}
                         </>
                     )}
                 </div>

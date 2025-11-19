@@ -208,48 +208,46 @@ const TicketCreate: React.FC<Props> = ({
             const files = (e.target as HTMLInputElement).files;
             if (!files) return;
 
-            Array.from(files).forEach(file => {
+            const currentImages = data.images || [];
+            const newFiles: File[] = [];
+            
+            for (const file of Array.from(files)) {
+                // Check individual file size (8MB)
+                const maxFileSize = 8 * 1024 * 1024; // 8MB
+                if (file.size > maxFileSize) {
+                    toast.error(`File "${file.name}" exceeds 8MB limit`);
+                    continue;
+                }
+                
+                newFiles.push(file);
+            }
+            
+            // Check total size (8MB)
+            const totalSize = [...currentImages, ...newFiles].reduce((sum, f) => sum + f.size, 0);
+            const maxTotalSize = 8 * 1024 * 1024; // 8MB
+            
+            if (totalSize > maxTotalSize) {
+                toast.error('Total file size exceeds 8MB limit');
+                return;
+            }
+
+            newFiles.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const base64 = e.target?.result as string;
                     editor?.chain().focus().setImage({ src: base64 }).run();
                 };
                 reader.readAsDataURL(file);
-
-                // Also add to images array for upload
-                const currentImages = data.images || [];
-                setData("images", [...currentImages, file]);
             });
+            
+            // Add to images array for upload
+            setData("images", [...currentImages, ...newFiles]);
         };
 
         input.click();
     };
 
-    // Handle file attachment to editor
-    const handleEditorFileUpload = () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '*/*';
-        input.multiple = true;
-        
-        input.onchange = async (e) => {
-            const files = (e.target as HTMLInputElement).files;
-            if (!files) return;
 
-            Array.from(files).forEach(file => {
-                // Add file as a link in the editor
-                const fileName = file.name;
-                const fileSize = (file.size / 1024).toFixed(2) + ' KB';
-                editor?.chain().focus().insertContent(`<p>📎 <a href="#">${fileName}</a> (${fileSize})</p>`).run();
-
-                // Add to images array for upload
-                const currentImages = data.images || [];
-                setData("images", [...currentImages, file]);
-            });
-        };
-
-        input.click();
-    };
 
     const handleCcEmailToggle = (emailId: number) => {
         const currentCc = data.cc || [];
@@ -655,7 +653,7 @@ const TicketCreate: React.FC<Props> = ({
                                 <p className="text-xs text-red-500">{errors.assigned_to}</p>
                             )}
                         </div>
-                            
+
                         {/* Priority */}
                         <div className="space-y-2">
                             <Label 
@@ -910,14 +908,6 @@ const TicketCreate: React.FC<Props> = ({
                                 onClick={handleEditorImageUpload}
                             >
                                 <ImageIcon className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleEditorFileUpload}
-                            >
-                                <Paperclip className="h-4 w-4" />
                             </Button>
                         </div>
 
