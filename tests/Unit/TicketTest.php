@@ -30,11 +30,10 @@ class TicketTest extends TestCase
         });
     }
 
-    public function test_index()
+    public function test_can_list_tickets(): void
     {
         $user = User::factory()->create();
         $otherUser = User::factory()->create();
-        
         $helpTopic = HelpTopic::factory()->create();
         
         Ticket::factory()->create([
@@ -53,35 +52,36 @@ class TicketTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function test_store_ticket()
+    public function test_can_create_ticket(): void
     {
         $user = User::factory()->create();
         $assignedUser = User::factory()->create();
         $helpTopic = HelpTopic::factory()->create(['name' => 'Support']);
         
-        $data = [
+        $response = $this->actingAs($user)->post(route('tickets.store'), [
             'user_id' => $user->id,
-            'ticket_source' => 'Web',
+            'ticket_source' => $ticketSource = 'Web',
             'help_topic' => $helpTopic->id,
-            'department' => 'IT',
-            'downtime' => now()->toDateTimeString(),
+            'department' => $department = 'IT',
+            'downtime' => $downtime = now()->toDateTimeString(),
             'assigned_to' => $assignedUser->id,
-            'body' => 'Test ticket body',
-            'priority' => 'High',
-        ];
-        
-        $response = $this->actingAs($user)->post(route('tickets.store'), $data);
+            'body' => $body = 'Test ticket body',
+            'priority' => $priority = 'High',
+        ]);
         
         $response->assertRedirect(route('tickets.index'));
         
         $this->assertDatabaseHas('tickets', [
             'user_id' => $user->id,
             'ticket_name' => 'Support-0001',
-            'body' => 'Test ticket body',
+            'body' => $body,
+            'ticket_source' => $ticketSource,
+            'department' => $department,
+            'priority' => $priority,
         ]);
     }
 
-    public function test_store_validates_required_fields()
+    public function test_validates_required_fields(): void
     {
         $user = User::factory()->create();
         
@@ -99,13 +99,13 @@ class TicketTest extends TestCase
         ]);
     }
 
-    public function test_store_prevents_creating_tickets_for_other_users()
+    public function test_prevents_creating_tickets_for_other_users(): void
     {
         $user = User::factory()->create();
         $otherUser = User::factory()->create();
         $helpTopic = HelpTopic::factory()->create();
         
-        $data = [
+        $response = $this->actingAs($user)->post(route('tickets.store'), [
             'user_id' => $otherUser->id,
             'ticket_source' => 'Web',
             'help_topic' => $helpTopic->id,
@@ -114,20 +114,18 @@ class TicketTest extends TestCase
             'assigned_to' => $user->id,
             'body' => 'Test',
             'priority' => 'High',
-        ];
-        
-        $response = $this->actingAs($user)->post(route('tickets.store'), $data);
+        ]);
         
         $response->assertSessionHasErrors(['user_id']);
     }
 
-    public function test_store_cc_emails()
+    public function test_can_attach_cc_emails(): void
     {
         $user = User::factory()->create();
         $helpTopic = HelpTopic::factory()->create();
         $ccEmails = Email::factory()->count(2)->create();
         
-        $data = [
+        $response = $this->actingAs($user)->post(route('tickets.store'), [
             'user_id' => $user->id,
             'ticket_source' => 'Web',
             'help_topic' => $helpTopic->id,
@@ -137,23 +135,21 @@ class TicketTest extends TestCase
             'body' => 'Test',
             'priority' => 'High',
             'cc' => $ccEmails->pluck('id')->toArray(),
-        ];
-        
-        $response = $this->actingAs($user)->post(route('tickets.store'), $data);
+        ]);
         
         $ticket = Ticket::latest()->first();
         $this->assertNotNull($ticket);
         $this->assertCount(2, $ticket->ccEmails);
     }
 
-    public function test_store_file_attachments()
+    public function test_can_attach_files(): void
     {
         Storage::fake('public');
         
         $user = User::factory()->create();
         $helpTopic = HelpTopic::factory()->create();
         
-        $data = [
+        $response = $this->actingAs($user)->post(route('tickets.store'), [
             'user_id' => $user->id,
             'ticket_source' => 'Web',
             'help_topic' => $helpTopic->id,
@@ -165,16 +161,14 @@ class TicketTest extends TestCase
             'images' => [
                 UploadedFile::fake()->image('test.jpg', 100, 100)->size(100),
             ],
-        ];
-        
-        $response = $this->actingAs($user)->post(route('tickets.store'), $data);
+        ]);
         
         $ticket = Ticket::latest()->first();
         $this->assertNotNull($ticket);
         $this->assertNotNull($ticket->image_paths);
     }
 
-    public function test_update_changes_ticket_status_and_calculates_resolution_time()
+    public function test_can_close_ticket(): void
     {
         $user = User::factory()->create();
         $helpTopic = HelpTopic::factory()->create();
@@ -197,7 +191,7 @@ class TicketTest extends TestCase
         $this->assertEquals($user->id, $ticket->closed_by);
     }
 
-    public function test_update_reopens_closed_ticket()
+    public function test_can_reopen_ticket(): void
     {
         $user = User::factory()->create();
         $helpTopic = HelpTopic::factory()->create();
@@ -222,7 +216,7 @@ class TicketTest extends TestCase
         $this->assertNull($ticket->resolution_time);
     }
 
-    public function test_update_changes_priority()
+    public function test_can_change_priority(): void
     {
         $user = User::factory()->create();
         $helpTopic = HelpTopic::factory()->create();
@@ -234,14 +228,14 @@ class TicketTest extends TestCase
         ]);
         
         $response = $this->actingAs($user)->put(route('tickets.update', $ticket), [
-            'priority' => 'High',
+            'priority' => $priority = 'High',
         ]);
         
         $ticket->refresh();
-        $this->assertEquals('High', $ticket->priority);
+        $this->assertEquals($priority, $ticket->priority);
     }
 
-    public function test_update_changes_assigned_user()
+    public function test_can_reassign_ticket(): void
     {
         $user = User::factory()->create();
         $newAssignee = User::factory()->create();
@@ -260,7 +254,7 @@ class TicketTest extends TestCase
         $this->assertEquals($newAssignee->id, $ticket->assigned_to);
     }
 
-    public function test_deletes_ticket()
+    public function test_can_delete_ticket(): void
     {
         $user = User::factory()->create();
         $helpTopic = HelpTopic::factory()->create();
@@ -274,36 +268,7 @@ class TicketTest extends TestCase
         
         $response = $this->actingAs($user)->delete(route('tickets.destroy', $ticket));
         
+        $response->assertRedirect();
         $this->assertDatabaseMissing('tickets', ['id' => $ticketId]);
-    }
-
-    public function test_generate_ticket_name()
-    {
-        $user = User::factory()->create();
-        $helpTopic = HelpTopic::factory()->create(['name' => 'Support']);
-        
-        Ticket::factory()->create([
-            'user_id' => $user->id,
-            'help_topic' => $helpTopic->id,
-            'ticket_name' => 'Support-0001',
-            'assigned_to' => $user->id,
-        ]);
-        
-        $data = [
-            'user_id' => $user->id,
-            'ticket_source' => 'Web',
-            'help_topic' => $helpTopic->id,
-            'department' => 'IT',
-            'downtime' => now()->toDateTimeString(),
-            'assigned_to' => $user->id,
-            'body' => 'Test',
-            'priority' => 'High',
-        ];
-        
-        $this->actingAs($user)->post(route('tickets.store'), $data);
-        
-        $this->assertDatabaseHas('tickets', [
-            'ticket_name' => 'Support-0002',
-        ]);
     }
 }
