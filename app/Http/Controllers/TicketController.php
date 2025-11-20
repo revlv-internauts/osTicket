@@ -117,22 +117,8 @@ class TicketController extends Controller
             'body'          => 'required|string',
             'status'        => 'nullable|string',
             'priority'      => 'required|string',
-            'images.*'      => 'nullable|file|max:8192',
-        ], [
-            'images.*.max' => 'Each image must not exceed 8MB.',
+            'images.*'      => 'nullable|file',
         ]);
-        
-        // Validate total file size (8MB)
-        if ($request->hasFile('images')) {
-            $totalSize = 0;
-            foreach ($request->file('images') as $image) {
-                $totalSize += $image->getSize();
-            }
-            $maxTotalSize = 8 * 1024 * 1024; // 8MB in bytes
-            if ($totalSize > $maxTotalSize) {
-                return back()->withErrors(['images' => 'Total attachment size exceeds 8MB limit. Please reduce the number or size of images.']);
-            }
-        }
 
         if (Auth::id() != $validated['user_id']) {
             return back()->withErrors(['user_id' => 'You cannot create tickets for other users.']);
@@ -271,22 +257,8 @@ class TicketController extends Controller
             'assigned_to' => 'nullable|exists:users,id',
             'priority' => 'nullable|string|in:Low,Medium,High',
             'images' => 'nullable|array',
-            'images.*' => 'nullable|file|max:8192',
-        ], [
-            'images.*.max' => 'Each image must not exceed 8MB.',
+            'images.*' => 'nullable|file',
         ]);
-        
-        // Validate total file size (8MB)
-        if ($request->hasFile('images')) {
-            $totalSize = 0;
-            foreach ($request->file('images') as $image) {
-                $totalSize += $image->getSize();
-            }
-            $maxTotalSize = 8 * 1024 * 1024; // 8MB in bytes
-            if ($totalSize > $maxTotalSize) {
-                return back()->withErrors(['images' => 'Total attachment size exceeds 8MB limit. Please reduce the number or size of images.']);
-            }
-        }
 
         $updateData = [];
         $changes = [];
