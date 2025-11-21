@@ -91,7 +91,7 @@ interface TicketProps {
     caption?: string;
 }
 
-type SortField = 'ticket_name' | 'user' | 'assigned_to' | 'priority' | 'status' | 'downtime' | 'uptime';
+type SortField = 'ticket_name' | 'user' | 'assigned_to' | 'priority' | 'status' | 'downtime' | 'uptime' | 'opened_by';
 type SortDirection = 'asc' | 'desc' | null;
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -152,6 +152,10 @@ export default function TicketsTable({
                 bValue = b.ticket_name?.toLowerCase() || '';
                 break;
             case 'user':
+                aValue = a.user?.name?.toLowerCase() || '';
+                bValue = b.user?.name?.toLowerCase() || '';
+                break;
+            case 'opened_by':
                 aValue = a.user?.name?.toLowerCase() || '';
                 bValue = b.user?.name?.toLowerCase() || '';
                 break;
@@ -360,11 +364,11 @@ export default function TicketsTable({
                                 <TableHead>
                                     <Button
                                         variant="ghost"
-                                        onClick={() => handleSort('uptime')}
+                                        onClick={() => handleSort('opened_by')}
                                         className="h-8 px-2 hover:bg-transparent"
                                     >
-                                        Uptime
-                                        {getSortIcon('uptime')}
+                                        Opened By
+                                        {getSortIcon('opened_by')}
                                     </Button>
                                 </TableHead>
                             )}
@@ -372,11 +376,11 @@ export default function TicketsTable({
                                 <TableHead>
                                     <Button
                                         variant="ghost"
-                                        onClick={() => handleSort('downtime')}
+                                        onClick={() => handleSort('assigned_to')}
                                         className="h-8 px-2 hover:bg-transparent"
                                     >
-                                        Downtime
-                                        {getSortIcon('downtime')}
+                                        Assigned To
+                                        {getSortIcon('assigned_to')}
                                     </Button>
                                 </TableHead>
                             )}
@@ -537,8 +541,16 @@ export default function TicketsTable({
                             {/* Main Details */}
                             <div className="grid grid-cols-2 gap-6">
                                 <div>
-                                    <p className="text-base font-medium text-muted-foreground mb-1">Submitted By</p>
+                                    <p className="text-base font-medium text-muted-foreground mb-1">Submitted By:</p>
                                     <p className="text-lg">{selectedTicket.user?.name || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-base font-medium text-muted-foreground mb-1">To:</p>
+                                    <p className="text-lg">{selectedTicket.recipient || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-base font-medium text-muted-foreground mb-1">Priority</p>
+                                    <p className="text-lg">{selectedTicket.priority || '-'}</p>
                                 </div>
                                 <div>
                                     <p className="text-base font-medium text-muted-foreground mb-1">Ticket Source</p>
@@ -551,14 +563,6 @@ export default function TicketsTable({
                                 <div>
                                     <p className="text-base font-medium text-muted-foreground mb-1">Department</p>
                                     <p className="text-lg">{selectedTicket.department || '-'}</p>
-                                </div>
-                                <div>
-                                    <p className="text-base font-medium text-muted-foreground mb-1">Priority</p>
-                                    <p className="text-lg">{selectedTicket.priority || '-'}</p>
-                                </div>
-                                <div>
-                                    <p className="text-base font-medium text-muted-foreground mb-1">Recipient Email</p>
-                                    <p className="text-lg">{selectedTicket.recipient || '-'}</p>
                                 </div>
                                 <div>
                                     <p className="text-base font-medium text-muted-foreground mb-1">Assigned To</p>

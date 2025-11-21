@@ -212,8 +212,7 @@ const TicketCreate: React.FC<Props> = ({
             const newFiles: File[] = [];
             
             for (const file of Array.from(files)) {
-                // Check individual file size (8MB)
-                const maxFileSize = 8 * 1024 * 1024; // 8MB
+                const maxFileSize = 8 * 1024 * 1024; 
                 if (file.size > maxFileSize) {
                     toast.error(`File "${file.name}" exceeds 8MB limit`);
                     continue;
@@ -222,7 +221,6 @@ const TicketCreate: React.FC<Props> = ({
                 newFiles.push(file);
             }
             
-            // Check total size (8MB)
             const totalSize = [...currentImages, ...newFiles].reduce((sum, f) => sum + f.size, 0);
             const maxTotalSize = 8 * 1024 * 1024; // 8MB
             
@@ -240,7 +238,6 @@ const TicketCreate: React.FC<Props> = ({
                 reader.readAsDataURL(file);
             });
             
-            // Add to images array for upload
             setData("images", [...currentImages, ...newFiles]);
         };
 
@@ -274,6 +271,7 @@ const TicketCreate: React.FC<Props> = ({
         const newErrors: { [key: string]: boolean } = {};
         
         if (!data.ticket_source) newErrors.ticket_source = true;
+        if (!data.recipient) newErrors.recipient = true;
         if (!data.help_topic) newErrors.help_topic = true;
         if (!data.department) newErrors.department = true;
         if (!data.downtime) newErrors.downtime = true;
@@ -285,6 +283,7 @@ const TicketCreate: React.FC<Props> = ({
         setFormErrors(newErrors);
         
         if (Object.keys(newErrors).length > 0) {
+            if (newErrors.recipient) toast.error("Recipient Email is required");
             if (newErrors.ticket_source) toast.error("Ticket Source is required");
             if (newErrors.help_topic) toast.error("Help Topic is required");
             if (newErrors.department) toast.error("Department is required");
@@ -389,16 +388,20 @@ const TicketCreate: React.FC<Props> = ({
                         
                         {/* Recipient Email */}
                         <div className="space-y-2">
-                            <Label htmlFor="recipient">
+                            <Label htmlFor="recipient" className={formErrors.recipient ? "text-red-500" : ""}>
                                 Recipient Email
                             </Label>
                             <Input
+                                className={formErrors.recipient ? "border-red-500" : ""}
                                 id="recipient"
                                 type="email"
                                 value={data.recipient}
                                 onChange={(e) => setData("recipient", e.target.value)}
                                 placeholder="recipient@example.com"
                             />
+                            {formErrors.recipient && (
+                                <p className="text-xs text-red-500">Recipient Email is required</p>
+                            )}
                             {errors.recipient && (
                                 <p className="text-xs text-red-500">{errors.recipient}</p>
                             )}
@@ -417,22 +420,23 @@ const TicketCreate: React.FC<Props> = ({
                                             Add New
                                         </Button>
                                     </DialogTrigger>
-                                    <DialogContent>
+                                    <DialogContent className="max-w-md">
                                         <DialogHeader>
-                                            <DialogTitle>Add New Help Topic</DialogTitle>
-                                            <DialogDescription>
+                                            <DialogTitle className="text-lg">Add New Help Topic</DialogTitle>
+                                            <DialogDescription className="text-sm">
                                                 Create a new help topic category
                                             </DialogDescription>
                                         </DialogHeader>
                                         <div className="space-y-4">
                                             <div className="space-y-2">
-                                                <Label htmlFor="new_help_topic_name">Help Topic Name*</Label>
+                                                <Label htmlFor="new_help_topic_name" className="text-sm">Help Topic Name*</Label>
                                                 <Input
                                                     id="new_help_topic_name"
                                                     type="text"
                                                     value={helpTopicForm.data.name}
                                                     onChange={(e) => helpTopicForm.setData('name', e.target.value)}
                                                     placeholder="Enter help topic name"
+                                                    className="h-9"
                                                 />
                                                 {helpTopicForm.errors.name && (
                                                     <p className="text-xs text-red-500">{helpTopicForm.errors.name}</p>
@@ -444,6 +448,7 @@ const TicketCreate: React.FC<Props> = ({
                                                 type="button"
                                                 onClick={handleAddHelpTopic}
                                                 disabled={helpTopicForm.processing}
+                                                size="sm"
                                             >
                                                 {helpTopicForm.processing ? "Adding..." : "Add Help Topic"}
                                             </Button>
@@ -488,7 +493,7 @@ const TicketCreate: React.FC<Props> = ({
                                             Add New
                                         </Button>
                                     </DialogTrigger>
-                                    <DialogContent>
+                                    <DialogContent className="max-w-md">
                                         <DialogHeader>
                                             <DialogTitle>Add New CC Email</DialogTitle>
                                             <DialogDescription>

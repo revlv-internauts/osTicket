@@ -29,7 +29,7 @@ export default function Dashboard() {
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
 
                 <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:col-span-4">
+                    <div className="contents">
                         <StatsCard title="Total Tickets" value={total} />
                         <StatsCard title="Opened" value={opened} />
                         <StatsCard title="Closed" value={closed} />

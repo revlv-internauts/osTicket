@@ -62,6 +62,16 @@ export default function ComputationView({ tickets, statistics }: ComputationView
         }
     };
 
+    const formatResolutionTime = (minutes: number) => {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        
+        if (hours === 0) {
+            return `${mins}m`;
+        }
+        return `${hours}h ${mins}m`;
+    };
+
     return (
         <div className="space-y-6">
             {/* Statistics Cards */}
@@ -77,7 +87,7 @@ export default function ComputationView({ tickets, statistics }: ComputationView
                     <CardHeader className="pb-2">
                         <CardDescription>Average Resolution Time</CardDescription>
                         <CardTitle className="text-2xl">
-                            {Math.floor(statistics.average_resolution_time / 60)}h {statistics.average_resolution_time % 60}m 
+                            {formatResolutionTime(statistics.average_resolution_time)}
                             <span className="text-lg text-muted-foreground ml-2">
                                 ({statistics.average_resolution_time} min)
                             </span>
@@ -131,7 +141,10 @@ export default function ComputationView({ tickets, statistics }: ComputationView
                                             <TableCell className="whitespace-nowrap">{ticket.downtime}</TableCell>
                                             <TableCell className="whitespace-nowrap">{ticket.uptime}</TableCell>
                                             <TableCell className="font-semibold whitespace-nowrap">
-                                                {ticket.resolution_time} minutes
+                                                {formatResolutionTime(ticket.resolution_time)}
+                                                <span className="text-sm text-muted-foreground ml-1">
+                                                    ({ticket.resolution_time} min)
+                                                </span>
                                             </TableCell>
                                         </TableRow>
                                     ))

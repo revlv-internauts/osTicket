@@ -320,7 +320,7 @@ const TicketEdit: React.FC<Props> = ({
 
                         {/* Submitted By - Read Only */}
                         <div className="space-y-2">
-                            <Label>Submitted By</Label>
+                            <Label>Submitted By:</Label>
                             <div className="p-2 bg-muted rounded-md">
                                 <span>{ticket.user?.name || 'Unknown'}</span>
                             </div>
@@ -334,13 +334,15 @@ const TicketEdit: React.FC<Props> = ({
                             </div>
                         </div>
 
-                        {/* Help Topic - Read Only */}
+                        {/* Recipient - Read Only */}
                         <div className="space-y-2">
-                            <Label>Help Topic</Label>
+                            <Label>To:</Label>
                             <div className="p-2 bg-muted rounded-md">
-                                <span>{ticket.help_topic_relation?.name || 'N/A'}</span>
+                                <span>{ticket.recipient || 'N/A'}</span>
                             </div>
                         </div>
+                      
+                       
 
                         {/* CC Emails - Read Only */}
                         <div className="space-y-2 md:col-span-2">
@@ -359,7 +361,13 @@ const TicketEdit: React.FC<Props> = ({
                                 </div>
                             )}
                         </div>
-
+                        {/* Help Topic - Read Only */}
+                        <div className="space-y-2">
+                            <Label>Help Topic</Label>
+                            <div className="p-2 bg-muted rounded-md">
+                                <span>{ticket.help_topic_relation?.name || 'N/A'}</span>
+                            </div>
+                        </div>
                         {/* Department - Read Only */}
                         <div className="space-y-2">
                             <Label>Department</Label>
@@ -412,13 +420,7 @@ const TicketEdit: React.FC<Props> = ({
 
                         
 
-                        {/* Recipient - Read Only */}
-                        <div className="space-y-2">
-                            <Label>Recipient Email</Label>
-                            <div className="p-2 bg-muted rounded-md">
-                                <span>{ticket.recipient || 'N/A'}</span>
-                            </div>
-                        </div>
+
 
                         {/* Priority - Editable */}
                         <div className="space-y-2">
