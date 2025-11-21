@@ -38,7 +38,6 @@ class DashboardController extends Controller
             ->values()
             ->toArray();
 
-        // Get Help Topic Stats with names using JOIN
         $helpTopicStats = DB::table('tickets')
             ->join('help_topics', 'tickets.help_topic', '=', 'help_topics.id')
             ->select('help_topics.name as help_topic')

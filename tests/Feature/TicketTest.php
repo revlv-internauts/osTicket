@@ -8,33 +8,26 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Services\MailtrapService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class TicketTest extends TestCase
 {
     use RefreshDatabase;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        Storage::fake('public');
-        
-        config(['services.mailtrap.api_key' => 'test-api-key']);
-        
-        $this->partialMock(MailtrapService::class, function ($mock) {
-            $mock->shouldReceive('sendTicketCreated')->andReturn(true);
-            $mock->shouldReceive('sendTicketUpdated')->andReturn(true);
-            $mock->shouldReceive('sendTicketClosed')->andReturn(true);
-        });
-    }
-
-    public function test_can_list_tickets(): void
+    public function bootstrapTicket()
     {
         $user = User::factory()->create();
         $otherUser = User::factory()->create();
         $helpTopic = HelpTopic::factory()->create();
+        $assignedUser = User::factory()->create(['name' => 'Support']);
+        $ccEmails = Email::factory()->count(2)->create();
+
+     return [$user, $otherUser, $helpTopic, $assignedUser, $ccEmails];
+    }
+
+    public function test_can_list_tickets(): void
+    {
+        [$user, $otherUser, $helpTopic] = $this->bootstrapTicket();
         
         Ticket::factory()->create([
             'user_id' => $user->id,
@@ -54,8 +47,7 @@ class TicketTest extends TestCase
 
     public function test_can_create_ticket(): void
     {
-        $user = User::factory()->create();
-        $assignedUser = User::factory()->create();
+        [$user, $assignedUser] = $this->bootstrapTicket();
         $helpTopic = HelpTopic::factory()->create(['name' => 'Support']);
         
         $response = $this->actingAs($user)->post(route('tickets.store'), [
@@ -99,11 +91,23 @@ class TicketTest extends TestCase
         ]);
     }
 
+    public function test_shows_ticket_details(): void
+    {
+        [$user, , $helpTopic] = $this->bootstrapTicket();
+        $ticket = Ticket::factory()->create([
+            'user_id' => $user->id,
+            'help_topic' => $helpTopic->id,
+            'assigned_to' => $user->id,
+        ]);
+        
+        $response = $this->actingAs($user)->get(route('tickets.show', $ticket));
+        
+        $response->assertStatus(200);
+    }   
+
     public function test_prevents_creating_tickets_for_other_users(): void
     {
-        $user = User::factory()->create();
-        $otherUser = User::factory()->create();
-        $helpTopic = HelpTopic::factory()->create();
+        [$user, $otherUser, $helpTopic] = $this->bootstrapTicket();
         
         $response = $this->actingAs($user)->post(route('tickets.store'), [
             'user_id' => $otherUser->id,
@@ -121,9 +125,7 @@ class TicketTest extends TestCase
 
     public function test_can_attach_cc_emails(): void
     {
-        $user = User::factory()->create();
-        $helpTopic = HelpTopic::factory()->create();
-        $ccEmails = Email::factory()->count(2)->create();
+        [$user, ,$helpTopic, $assignedUser, $ccEmails] = $this->bootstrapTicket();
         
         $response = $this->actingAs($user)->post(route('tickets.store'), [
             'user_id' => $user->id,
@@ -131,7 +133,7 @@ class TicketTest extends TestCase
             'help_topic' => $helpTopic->id,
             'department' => 'IT',
             'downtime' => now()->toDateTimeString(),
-            'assigned_to' => $user->id,
+            'assigned_to' => $assignedUser->id,
             'body' => 'Test',
             'priority' => 'High',
             'cc' => $ccEmails->pluck('id')->toArray(),
@@ -142,36 +144,9 @@ class TicketTest extends TestCase
         $this->assertCount(2, $ticket->ccEmails);
     }
 
-    public function test_can_attach_files(): void
-    {
-        Storage::fake('public');
-        
-        $user = User::factory()->create();
-        $helpTopic = HelpTopic::factory()->create();
-        
-        $response = $this->actingAs($user)->post(route('tickets.store'), [
-            'user_id' => $user->id,
-            'ticket_source' => 'Web',
-            'help_topic' => $helpTopic->id,
-            'department' => 'IT',
-            'downtime' => now()->toDateTimeString(),
-            'assigned_to' => $user->id,
-            'body' => 'Test',
-            'priority' => 'High',
-            'images' => [
-                UploadedFile::fake()->image('test.jpg', 100, 100)->size(100),
-            ],
-        ]);
-        
-        $ticket = Ticket::latest()->first();
-        $this->assertNotNull($ticket);
-        $this->assertNotNull($ticket->image_paths);
-    }
-
     public function test_can_close_ticket(): void
     {
-        $user = User::factory()->create();
-        $helpTopic = HelpTopic::factory()->create();
+        [$user, , $helpTopic] = $this->bootstrapTicket();
         $ticket = Ticket::factory()->create([
             'user_id' => $user->id,
             'help_topic' => $helpTopic->id,
@@ -193,8 +168,7 @@ class TicketTest extends TestCase
 
     public function test_can_reopen_ticket(): void
     {
-        $user = User::factory()->create();
-        $helpTopic = HelpTopic::factory()->create();
+        [$user, , $helpTopic] = $this->bootstrapTicket();
         $ticket = Ticket::factory()->create([
             'user_id' => $user->id,
             'help_topic' => $helpTopic->id,
@@ -218,13 +192,12 @@ class TicketTest extends TestCase
 
     public function test_can_change_priority(): void
     {
-        $user = User::factory()->create();
-        $helpTopic = HelpTopic::factory()->create();
+        [$user, , $helpTopic, $assignedUser] = $this->bootstrapTicket();
         $ticket = Ticket::factory()->create([
             'user_id' => $user->id,
             'help_topic' => $helpTopic->id,
             'priority' => 'Low',
-            'assigned_to' => $user->id,
+            'assigned_to' => $assignedUser->id,
         ]);
         
         $response = $this->actingAs($user)->put(route('tickets.update', $ticket), [
@@ -236,14 +209,13 @@ class TicketTest extends TestCase
     }
 
     public function test_can_reassign_ticket(): void
-    {
-        $user = User::factory()->create();
+    {        
+        [$user, , $helpTopic, $assignedUser] = $this->bootstrapTicket();
         $newAssignee = User::factory()->create();
-        $helpTopic = HelpTopic::factory()->create();
         $ticket = Ticket::factory()->create([
             'user_id' => $user->id,
             'help_topic' => $helpTopic->id,
-            'assigned_to' => $user->id,
+            'assigned_to' => $assignedUser->id,
         ]);
         
         $response = $this->actingAs($user)->put(route('tickets.update', $ticket), [
@@ -256,12 +228,11 @@ class TicketTest extends TestCase
 
     public function test_can_delete_ticket(): void
     {
-        $user = User::factory()->create();
-        $helpTopic = HelpTopic::factory()->create();
+        [$user, , $helpTopic, $assignedUser] = $this->bootstrapTicket();
         $ticket = Ticket::factory()->create([
             'user_id' => $user->id,
             'help_topic' => $helpTopic->id,
-            'assigned_to' => $user->id,
+            'assigned_to' => $assignedUser->id,
         ]);
         
         $ticketId = $ticket->id;

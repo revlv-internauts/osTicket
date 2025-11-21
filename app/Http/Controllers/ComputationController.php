@@ -103,10 +103,6 @@ class ComputationController extends Controller
                 'total_tickets' => 0,
                 'average_resolution_time' => 0,
                 'average_resolution_time_formatted' => '0 minutes',
-                'fastest_resolution_time' => 0,
-                'fastest_resolution_time_formatted' => '0 minutes',
-                'slowest_resolution_time' => 0,
-                'slowest_resolution_time_formatted' => '0 minutes',
                 'total_resolution_time' => 0,
                 'total_resolution_time_formatted' => '0 minutes',
             ];
@@ -121,10 +117,6 @@ class ComputationController extends Controller
             'total_tickets' => $tickets->count(),
             'average_resolution_time' => $average,
             'average_resolution_time_formatted' => $this->formatMinutes($average),
-            'fastest_resolution_time' => $fastest,
-            'fastest_resolution_time_formatted' => $this->formatMinutes($fastest),
-            'slowest_resolution_time' => $slowest,
-            'slowest_resolution_time_formatted' => $this->formatMinutes($slowest),
             'total_resolution_time' => $total,
             'total_resolution_time_formatted' => $this->formatMinutes($total),
         ];

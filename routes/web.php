@@ -20,15 +20,15 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
-    Route::get('list', [ListController::class, 'index'])->name('list');
-    Route::post('/users', [ListController::class, 'store'])->name('admin.users.store');
+    Route::get('/list', [ListController::class, 'index'])->name('list');
+    Route::post('/list', [ListController::class, 'store'])->name('list.store');
 
    
     Route::get('ticket', [TicketController::class, 'index'])->name('ticket');
 
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
-    Route::get('computation', [ComputationController::class, 'index'])->name('computation');
+    Route::get('/computation', [ComputationController::class, 'index'])->name('computation.index');
     
 
     Route::get('/users', function () {
@@ -40,10 +40,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     Route::resource('tickets', TicketController::class);
     
-    // Email routes for CC
+
     Route::resource('emails', EmailController::class);
     
-    // Help Topic routes
+
     Route::resource('help-topics', HelpTopicController::class);
     
     
