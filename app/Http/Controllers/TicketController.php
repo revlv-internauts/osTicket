@@ -401,36 +401,5 @@ class TicketController extends Controller
         }
     }
 
-    /**
-     * Download a ticket attachment
-     */
-    public function downloadAttachment(Ticket $ticket, $filename)
-    {
-        if (!$ticket->image_paths) {
-            abort(404, 'No attachments found');
-        }
-
-        $imagePaths = json_decode($ticket->image_paths, true);
-        
-        // Find the file path that matches the filename
-        $filePath = null;
-        foreach ($imagePaths as $path) {
-            if (basename($path) === $filename) {
-                $filePath = $path;
-                break;
-            }
-        }
-
-        if (!$filePath) {
-            abort(404, 'File not found');
-        }
-
-        $fullPath = storage_path('app/public/' . $filePath);
-
-        if (!file_exists($fullPath)) {
-            abort(404, 'File not found on server');
-        }
-
-        return response()->download($fullPath, $filename);
-    }
+    
 }
