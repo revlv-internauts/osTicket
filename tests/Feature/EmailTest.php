@@ -14,7 +14,7 @@ class EmailTest extends TestCase
     /**
      * A basic feature test example.
      */
-      public function test_can_create_help_topic(): void
+      public function test_can_create_email(): void
     {
         $user = User::factory()->create();
         

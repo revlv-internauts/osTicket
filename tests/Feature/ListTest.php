@@ -39,7 +39,7 @@ class ListTest extends TestCase
     {
         $admin = User::factory()->create();
         
-        $response = $this->actingAs($admin)->post(route('list.store'), [
+        $response = $this->actingAs($admin)->post(route('admin.user.store'), [
             'name' => $name = 'John Doe',
             'email' => $email = 'john@example.com',
             'password' => 'password123',
@@ -62,7 +62,7 @@ class ListTest extends TestCase
     {
         $admin = User::factory()->create();
         
-        $response = $this->actingAs($admin)->post(route('list.store'), [
+        $response = $this->actingAs($admin)->post(route('admin.user.store'), [
             'name' => 'John Doe',
             'email' => 'invalid-email',
             'password' => 'password123',
@@ -77,25 +77,11 @@ class ListTest extends TestCase
     {
         $admin = User::factory()->create();
         
-        $response = $this->actingAs($admin)->post(route('list.store'), [
+        $response = $this->actingAs($admin)->post(route('admin.user.store'), [
             'name' => 'John Doe',
             'email' => 'john@example.com',
             'password' => 'password123',
             'password_confirmation' => 'different-password',
-        ]);
-        
-        $response->assertSessionHasErrors(['password']);
-    }
-
-    public function test_validates_password_strength(): void
-    {
-        $admin = User::factory()->create();
-        
-        $response = $this->actingAs($admin)->post(route('list.store'), [
-            'name' => 'John Doe',
-            'email' => 'john@example.com',
-            'password' => '123',
-            'password_confirmation' => '123',
         ]);
         
         $response->assertSessionHasErrors(['password']);

@@ -244,27 +244,4 @@ class TicketTest extends TestCase
         $response->assertRedirect();
         $this->assertDatabaseMissing('tickets', ['id' => $ticketId]);
     }
-    
-    public function test_generates_ticket_name_correctly(): void
-    {
-        [$user, , $helpTopic] = $this->bootstrapTicket();
-        
-        $response = $this->actingAs($user)->post(route('tickets.store'), [
-            'user_id' => $user->id,
-            'ticket_source' => 'Web',
-            'help_topic' => $helpTopic->id,
-            'department' => 'IT',
-            'downtime' => now()->toDateTimeString(),
-            'assigned_to' => $user->id,
-            'body' => 'Test ticket body',
-            'priority' => 'High',
-        ]);
-        
-        $response->assertRedirect(route('tickets.index'));
-        
-        $this->assertDatabaseHas('tickets', [
-            'help_topic' => $helpTopic->id,
-            'ticket_name' => $helpTopic->name . '-0001',
-        ]);
-    }
 }

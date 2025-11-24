@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ticket;
+use App\Models\TicketHistory;
 use App\Models\User;
 use App\Models\Email;
 use App\Models\HelpTopic;
@@ -264,12 +265,30 @@ class TicketController extends Controller
         $changes = [];
 
         if (isset($validated['assigned_to']) && $validated['assigned_to'] != $ticket->assigned_to) {
+            // Log the change to history
+            TicketHistory::create([
+                'ticket_id' => $ticket->id,
+                'field_name' => 'assigned_to',
+                'old_value' => $ticket->assigned_to ? User::find($ticket->assigned_to)?->name : 'Unassigned',
+                'new_value' => $validated['assigned_to'] ? User::find($validated['assigned_to'])?->name : 'Unassigned',
+                'changed_by' => Auth::id(),
+            ]);
+            
             $updateData['assigned_to'] = $validated['assigned_to'];
             $assignedUser = User::find($validated['assigned_to']);
             $changes['Assigned To'] = $assignedUser ? $assignedUser->name : 'Unassigned';
         }
 
         if (isset($validated['priority']) && $validated['priority'] != $ticket->priority) {
+            // Log the change to history
+            TicketHistory::create([
+                'ticket_id' => $ticket->id,
+                'field_name' => 'priority',
+                'old_value' => $ticket->priority,
+                'new_value' => $validated['priority'],
+                'changed_by' => Auth::id(),
+            ]);
+            
             $updateData['priority'] = $validated['priority'];
             $changes['Priority'] = $validated['priority'];
         }

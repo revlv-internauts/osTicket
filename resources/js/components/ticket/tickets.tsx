@@ -529,7 +529,7 @@ export default function TicketsTable({
                                     <p className="text-base font-medium text-muted-foreground mb-2">Status</p>
                                     <Badge className={`mt-1 text-base px-4 py-2 ${
                                         selectedTicket.status === 'Open' ? 'bg-green-500' :
-                                        selectedTicket.status === 'Closed' ? 'bg-gray-500' :
+                                        selectedTicket.status === 'Closed' ? 'bg-red-500' :
                                         'bg-blue-500'
                                     }`}>
                                         {selectedTicket.status || 'Unknown'}
@@ -709,10 +709,12 @@ export default function TicketsTable({
                                 Close
                             </Button>
                             <div className="flex gap-2">
-                                <Button onClick={handleUpdateFromDialog} className="text-base px-6 py-2">
-                                    <Pencil className="h-5 w-5 mr-2" />
-                                    Update Ticket
-                                </Button>
+                                {selectedTicket?.status !== 'Closed' && (
+                                    <Button onClick={handleUpdateFromDialog} className="text-base px-6 py-2">
+                                        <Pencil className="h-5 w-5 mr-2" />
+                                        Update Ticket
+                                    </Button>
+                                )}
                                 <Button 
                                     variant={selectedTicket?.status === 'Closed' ? 'default' : 'destructive'}
                                     onClick={handleCloseFromDialog} 

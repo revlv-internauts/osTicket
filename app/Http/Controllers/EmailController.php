@@ -19,15 +19,7 @@ class EmailController extends Controller
             'emails' => $emails,
         ]);
     }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        return Inertia::render('Emails/Create');
-    }
-
+    
     /**
      * Store a newly created resource in storage.
      */

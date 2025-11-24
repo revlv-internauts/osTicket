@@ -21,7 +21,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
     Route::get('/list', [ListController::class, 'index'])->name('list');
-    Route::post('/list', [ListController::class, 'store'])->name('list.store');
+    Route::post('/list', [ListController::class, 'store'])->name('admin.user.store');
 
    
     Route::get('ticket', [TicketController::class, 'index'])->name('ticket');

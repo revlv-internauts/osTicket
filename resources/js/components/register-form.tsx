@@ -22,7 +22,7 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        post('/users', {
+        post('/list', {
             onSuccess: () => {
                 toast.success('User created successfully!');
                 reset();

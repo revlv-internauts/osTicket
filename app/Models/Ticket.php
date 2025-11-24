@@ -116,4 +116,12 @@ class Ticket extends Model
     {
         return $this->belongsTo(User::class, 'closed_by');
     }
+
+    /**
+     * Get the history records for the ticket.
+     */
+    public function histories()
+    {
+        return $this->hasMany(TicketHistory::class);
+    }
 }
