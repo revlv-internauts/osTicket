@@ -26,6 +26,7 @@ class TicketController extends Controller
             'assignedToUser', 
             'helpTopicRelation', 
             'ccEmails',
+            'recipientEmails',
             'openedByUser',
             'closedByUser'
         ])
@@ -37,6 +38,7 @@ class TicketController extends Controller
             'assignedToUser', 
             'helpTopicRelation', 
             'ccEmails',
+            'recipientEmails',
             'openedByUser',
             'closedByUser'
         ])
@@ -107,7 +109,8 @@ class TicketController extends Controller
     {
         $validated = $request->validate([
             'user_id'       => 'required|exists:users,id',
-            'recipient'     => 'nullable|email',
+            'recipient'     => 'nullable|array',
+            'recipient.*'   => 'exists:emails,id',
             'cc'            => 'nullable|array',
             'cc.*'          => 'exists:emails,id',
             'ticket_source' => 'required|string',
@@ -167,13 +170,19 @@ class TicketController extends Controller
         $validated['image_paths'] = !empty($imagePaths) ? json_encode($imagePaths) : null;
         
         $ccEmails = $validated['cc'] ?? [];
+        $recipientEmails = $validated['recipient'] ?? [];
         unset($validated['cc']);
+        unset($validated['recipient']);
         unset($validated['images']);
         
         $ticket = Ticket::create($validated);
 
         if (!empty($ccEmails)) {
             $ticket->ccEmails()->attach($ccEmails);
+        }
+
+        if (!empty($recipientEmails)) {
+            $ticket->recipientEmails()->attach($recipientEmails);
         }
 
         $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails']);
@@ -185,8 +194,10 @@ class TicketController extends Controller
                 $mailtrapService->sendTicketCreated($ticket, $ticket->user->email);
             }
 
-            if ($ticket->recipient) {
-                $mailtrapService->sendTicketCreated($ticket, $ticket->recipient);
+            if ($ticket->recipientEmails && $ticket->recipientEmails->count() > 0) {
+                foreach ($ticket->recipientEmails as $recipientEmail) {
+                    $mailtrapService->sendTicketCreated($ticket, $recipientEmail->email_address);
+                }
             }
 
             if ($ticket->assigned_to && $ticket->assignedToUser && $ticket->assignedToUser->email) {
@@ -216,6 +227,7 @@ class TicketController extends Controller
             'assignedToUser', 
             'helpTopicRelation', 
             'ccEmails',
+            'recipientEmails',
             'openedByUser',
             'closedByUser'
         ]);
@@ -249,6 +261,7 @@ class TicketController extends Controller
             'assignedToUser', 
             'helpTopicRelation', 
             'ccEmails',
+            'recipientEmails',
             'openedByUser',
             'closedByUser'
         ]);
@@ -380,7 +393,7 @@ class TicketController extends Controller
         if (!empty($updateData)) {
             $ticket->update($updateData);
             $ticket->refresh();
-            $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails', 'closedByUser']);
+            $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails', 'recipientEmails', 'closedByUser']);
 
             try {
                 $mailtrapService = new MailtrapService();
@@ -389,8 +402,10 @@ class TicketController extends Controller
                     if ($ticket->user && $ticket->user->email) {
                         $mailtrapService->sendTicketClosed($ticket, $ticket->user->email);
                     }
-                    if ($ticket->recipient) {
-                        $mailtrapService->sendTicketClosed($ticket, $ticket->recipient);
+                    if ($ticket->recipientEmails && $ticket->recipientEmails->count() > 0) {
+                        foreach ($ticket->recipientEmails as $recipientEmail) {
+                            $mailtrapService->sendTicketClosed($ticket, $recipientEmail->email_address);
+                        }
                     }
                     if ($ticket->assigned_to && $ticket->assignedToUser && $ticket->assignedToUser->email) {
                         $mailtrapService->sendTicketClosed($ticket, $ticket->assignedToUser->email);
@@ -404,8 +419,10 @@ class TicketController extends Controller
                     if ($ticket->user && $ticket->user->email) {
                         $mailtrapService->sendTicketUpdated($ticket, $ticket->user->email, $changes);
                     }
-                    if ($ticket->recipient) {
-                        $mailtrapService->sendTicketUpdated($ticket, $ticket->recipient, $changes);
+                    if ($ticket->recipientEmails && $ticket->recipientEmails->count() > 0) {
+                        foreach ($ticket->recipientEmails as $recipientEmail) {
+                            $mailtrapService->sendTicketUpdated($ticket, $recipientEmail->email_address, $changes);
+                        }
                     }
                     if ($ticket->assigned_to && $ticket->assignedToUser && $ticket->assignedToUser->email) {
                         $mailtrapService->sendTicketUpdated($ticket, $ticket->assignedToUser->email, $changes);

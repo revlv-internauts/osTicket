@@ -34,6 +34,7 @@ type TicketData = {
     ticket_name: string;
     user_id: number;
     recipient?: string | null;
+    recipient_emails?: Array<{ id: number; email_address: string; name?: string }>;
     cc?: number[] | null;
     ticket_source: string;
     help_topic: number;
@@ -337,11 +338,21 @@ const TicketEdit: React.FC<Props> = ({
                         </div>
 
                         {/* Recipient - Read Only */}
-                        <div className="space-y-2">
+                        <div className="space-y-2 md:col-span-2">
                             <Label>To:</Label>
-                            <div className="p-2 bg-muted rounded-md">
-                                <span>{ticket.recipient || 'N/A'}</span>
-                            </div>
+                            {ticket.recipient_emails && ticket.recipient_emails.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {ticket.recipient_emails.map((email: any) => (
+                                        <Badge key={email.id} variant="secondary">
+                                            {email.email_address}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="p-2 bg-muted rounded-md">
+                                    <span className="text-muted-foreground text-sm">No recipients</span>
+                                </div>
+                            )}
                         </div>
                       
                        

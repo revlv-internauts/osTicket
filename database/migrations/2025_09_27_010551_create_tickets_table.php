@@ -15,7 +15,6 @@ return new class extends Migration
             $table->id();
             $table->string('ticket_name')->unique();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('recipient')->nullable();
             $table->string('ticket_source', 50);
             $table->foreignId('help_topic')->constrained('help_topics')->onDelete('cascade');
             $table->string('department', 100);

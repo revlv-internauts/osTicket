@@ -40,7 +40,7 @@ import Link from '@tiptap/extension-link';
 
 type Ticket = {
     user_id: number;
-    recipient?: string | null;
+    recipient?: number[] | null;
     cc?: number[] | null;
     ticket_source: string;
     help_topic: number;
@@ -77,7 +77,7 @@ const TicketCreate: React.FC<Props> = ({
 
     const { data, setData, post, processing, errors } = useForm<{
         user_id: number;
-        recipient: string;
+        recipient: number[];
         cc: number[];
         ticket_source: string;
         help_topic: number;
@@ -90,7 +90,7 @@ const TicketCreate: React.FC<Props> = ({
         images: File[];
     }>({
         user_id: user?.id || 0,
-        recipient: "",
+        recipient: [] as number[],
         cc: [] as number[],
         ticket_source: "Email",
         help_topic: 0,
@@ -106,6 +106,7 @@ const TicketCreate: React.FC<Props> = ({
     const [emailDialogOpen, setEmailDialogOpen] = useState(false);
     const [helpTopicDialogOpen, setHelpTopicDialogOpen] = useState(false);
     const [ccPopoverOpen, setCcPopoverOpen] = useState(false);
+    const [recipientPopoverOpen, setRecipientPopoverOpen] = useState(false);
     const [date, setDate] = useState<Date | undefined>(undefined);
     const [time, setTime] = useState<string>("12:00");
     const [formErrors, setFormErrors] = useState<{ [key: string]: boolean }>({});
@@ -154,7 +155,7 @@ const TicketCreate: React.FC<Props> = ({
     const resetForm = () => {
         setData({
             user_id: user?.id || 0,
-            recipient: "",
+            recipient: [] as number[],
             cc: [] as number[],
             ticket_source: "Email",
             help_topic: 0,
@@ -246,6 +247,27 @@ const TicketCreate: React.FC<Props> = ({
 
 
 
+    const handleRecipientEmailToggle = (emailId: number) => {
+        const currentRecipient = data.recipient || [];
+        const isSelected = currentRecipient.includes(emailId);
+
+        if (isSelected) {
+            setData("recipient", currentRecipient.filter(id => id !== emailId));
+        } else {
+            setData("recipient", [...currentRecipient, emailId]);
+        }
+    };
+
+    const removeRecipientEmail = (emailId: number) => {
+        const currentRecipient = data.recipient || [];
+        setData("recipient", currentRecipient.filter(id => id !== emailId));
+    };
+
+    const getSelectedRecipientEmails = () => {
+        const currentRecipient = data.recipient || [];
+        return emails.filter((email: any) => currentRecipient.includes(email.id));
+    };
+
     const handleCcEmailToggle = (emailId: number) => {
         const currentCc = data.cc || [];
         const isSelected = currentCc.includes(emailId);
@@ -271,7 +293,7 @@ const TicketCreate: React.FC<Props> = ({
         const newErrors: { [key: string]: boolean } = {};
         
         if (!data.ticket_source) newErrors.ticket_source = true;
-        if (!data.recipient) newErrors.recipient = true;
+        if (!data.recipient || data.recipient.length === 0) newErrors.recipient = true;
         if (!data.help_topic) newErrors.help_topic = true;
         if (!data.department) newErrors.department = true;
         if (!data.downtime) newErrors.downtime = true;
@@ -283,7 +305,7 @@ const TicketCreate: React.FC<Props> = ({
         setFormErrors(newErrors);
         
         if (Object.keys(newErrors).length > 0) {
-            if (newErrors.recipient) toast.error("Recipient Email is required");
+            if (newErrors.recipient) toast.error("At least one Recipient Email is required");
             if (newErrors.ticket_source) toast.error("Ticket Source is required");
             if (newErrors.help_topic) toast.error("Help Topic is required");
             if (newErrors.department) toast.error("Department is required");
@@ -386,21 +408,147 @@ const TicketCreate: React.FC<Props> = ({
                             </div>
                         </div>
                         
-                        {/* Recipient Email */}
+                        {/* Recipient Email - Multi Select */}
                         <div className="space-y-2">
-                            <Label htmlFor="recipient" className={formErrors.recipient ? "text-red-500" : ""}>
-                                Recipient Email
-                            </Label>
-                            <Input
-                                className={formErrors.recipient ? "border-red-500" : ""}
-                                id="recipient"
-                                type="email"
-                                value={data.recipient}
-                                onChange={(e) => setData("recipient", e.target.value)}
-                                placeholder="recipient@example.com"
-                            />
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="recipient" className={formErrors.recipient ? "text-red-500" : ""}>
+                                    Recipient Emails (Multiple)*
+                                </Label>
+                                <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" size="sm" type="button">
+                                            <Plus className="h-4 w-4 mr-1" />
+                                            Add New
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-md">
+                                        <DialogHeader>
+                                            <DialogTitle>Add New Email</DialogTitle>
+                                            <DialogDescription>
+                                                Add a new email address
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new_email_address">Email Address*</Label>
+                                                <Input
+                                                    id="new_email_address"
+                                                    type="email"
+                                                    value={emailForm.data.email_address}
+                                                    onChange={(e) => emailForm.setData('email_address', e.target.value)}
+                                                    placeholder="email@example.com"
+                                                />
+                                                {emailForm.errors.email_address && (
+                                                    <p className="text-xs text-red-500">{emailForm.errors.email_address}</p>
+                                                )}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new_email_name">Name (Optional)</Label>
+                                                <Input
+                                                    id="new_email_name"
+                                                    type="text"
+                                                    value={emailForm.data.name}
+                                                    onChange={(e) => emailForm.setData('name', e.target.value)}
+                                                    placeholder="Display name"
+                                                />
+                                            </div>
+                                        </div>
+                                        <DialogFooter>
+                                            <Button
+                                                type="button"
+                                                onClick={handleAddEmail}
+                                                disabled={emailForm.processing}
+                                            >
+                                                {emailForm.processing ? "Adding..." : "Add Email"}
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+
+                            <Popover open={recipientPopoverOpen} onOpenChange={setRecipientPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className={cn(
+                                            "w-full justify-start text-left font-normal",
+                                            formErrors.recipient && "border-red-500"
+                                        )}
+                                    >
+                                        <span className="text-muted-foreground">
+                                            {getSelectedRecipientEmails().length > 0
+                                                ? `${getSelectedRecipientEmails().length} recipient(s) selected`
+                                                : "Select recipient emails"}
+                                        </span>
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-full p-0" align="start">
+                                    <div className="max-h-64 overflow-y-auto">
+                                        {emails.length > 0 ? (
+                                            emails.map((email: any) => {
+                                                const isSelected = (data.recipient || []).includes(email.id);
+                                                return (
+                                                    <div
+                                                        key={email.id}
+                                                        className={cn(
+                                                            "flex items-center px-3 py-2 cursor-pointer hover:bg-muted",
+                                                            isSelected && "bg-muted"
+                                                        )}
+                                                        onClick={() => handleRecipientEmailToggle(email.id)}
+                                                    >
+                                                        <div className="flex items-center space-x-2 flex-1">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isSelected}
+                                                                onChange={() => { }}
+                                                                className="h-4 w-4"
+                                                            />
+                                                            <span className="text-sm">{email.email_address}</span>
+                                                            {email.name && (
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    ({email.name})
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                                No emails available. Add one using the button above.
+                                            </div>
+                                        )}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+
+                            {getSelectedRecipientEmails().length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {getSelectedRecipientEmails().map((email: any) => (
+                                        <Badge 
+                                            key={email.id} 
+                                            variant="secondary" 
+                                            className="gap-1 pr-1"
+                                        >
+                                            <span>{email.email_address}</span>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    removeRecipientEmail(email.id);
+                                                }}
+                                                className="ml-1 rounded-sm hover:bg-destructive/20 p-0.5"
+                                            >
+                                                <X className="h-3 w-3 hover:text-destructive" />
+                                            </button>
+                                        </Badge>
+                                    ))}
+                                </div>
+                            )}
                             {formErrors.recipient && (
-                                <p className="text-xs text-red-500">Recipient Email is required</p>
+                                <p className="text-xs text-red-500">At least one Recipient Email is required</p>
                             )}
                             {errors.recipient && (
                                 <p className="text-xs text-red-500">{errors.recipient}</p>

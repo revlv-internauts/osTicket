@@ -17,7 +17,6 @@ class Ticket extends Model
     protected $fillable = [
         'ticket_name',
         'user_id',
-        'recipient',
         'cc',
         'ticket_source',
         'help_topic',
@@ -91,6 +90,14 @@ class Ticket extends Model
     public function ccEmails()
     {
         return $this->belongsToMany(Email::class, 'email_recipients', 'ticket_id', 'email_id');
+    }
+
+    /**
+     * Get the recipient emails.
+     */
+    public function recipientEmails()
+    {
+        return $this->belongsToMany(Email::class, 'ticket_recipients', 'ticket_id', 'email_id');
     }
 
     /**

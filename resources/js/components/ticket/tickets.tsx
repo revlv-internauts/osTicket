@@ -59,6 +59,7 @@ interface Ticket {
     user_id: number;
     user?: User;
     recipient?: string;
+    recipient_emails?: Email[];
     cc?: number[];
     cc_emails?: Email[];
     ticket_notice?: string;
@@ -550,9 +551,20 @@ export default function TicketsTable({
                                     <p className="text-base font-medium text-muted-foreground mb-1">Submitted By:</p>
                                     <p className="text-lg">{selectedTicket.user?.name || '-'}</p>
                                 </div>
-                                <div>
-                                    <p className="text-base font-medium text-muted-foreground mb-1">To:</p>
-                                    <p className="text-lg">{selectedTicket.recipient || '-'}</p>
+                                <div className="col-span-2">
+                                    <p className="text-base font-medium text-muted-foreground mb-2">To:</p>
+                                    {selectedTicket.recipient_emails && selectedTicket.recipient_emails.length > 0 ? (
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedTicket.recipient_emails.map((email) => (
+                                                <Badge key={email.id} variant="secondary" className="text-sm px-3 py-1">
+                                                    {email.email_address}
+                                                    {email.name && ` (${email.name})`}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-lg text-muted-foreground">No recipients</p>
+                                    )}
                                 </div>
                                 <div>
                                     <p className="text-base font-medium text-muted-foreground mb-1">Priority</p>
