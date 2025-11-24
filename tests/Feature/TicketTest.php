@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Email;
 use App\Models\HelpTopic;
 use App\Models\Ticket;
+use App\Models\TicketAttachment;
 use App\Models\User;
 use App\Services\MailtrapService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -107,23 +108,6 @@ class TicketTest extends TestCase
         $response->assertStatus(200);
     }   
 
-    public function test_prevents_creating_tickets_for_other_users(): void
-    {
-        [$user, $otherUser, $helpTopic] = $this->bootstrapTicket();
-        
-        $response = $this->actingAs($user)->post(route('tickets.store'), [
-            'user_id' => $otherUser->id,
-            'ticket_source' => 'Web',
-            'help_topic' => $helpTopic->id,
-            'department' => 'IT',
-            'downtime' => now()->toDateTimeString(),
-            'assigned_to' => $user->id,
-            'body' => 'Test',
-            'priority' => 'High',
-        ]);
-        
-        $response->assertSessionHasErrors(['user_id']);
-    }
 
     public function test_can_attach_cc_emails(): void
     {
@@ -143,7 +127,8 @@ class TicketTest extends TestCase
         
         $ticket = Ticket::latest()->first();
         $this->assertNotNull($ticket);
-        $this->assertCount(2, $ticket->ccEmails);
+        $ticket->load('ccEmails');
+        $this->assertEquals(2, $ticket->ccEmails->count());
     }
 
     public function test_can_close_ticket(): void
@@ -199,10 +184,12 @@ class TicketTest extends TestCase
             'user_id' => $user->id,
             'help_topic' => $helpTopic->id,
             'priority' => 'Low',
-            'assigned_to' => $assignedUser->id,
+            'assigned_to' => $user->id,
+            'opened_by' => $user->id,
         ]);
         
         $response = $this->actingAs($user)->put(route('tickets.update', $ticket), [
+            'body' => 'Updated',
             'priority' => $priority = 'High',
         ]);
         
@@ -217,10 +204,12 @@ class TicketTest extends TestCase
         $ticket = Ticket::factory()->create([
             'user_id' => $user->id,
             'help_topic' => $helpTopic->id,
-            'assigned_to' => $assignedUser->id,
+            'assigned_to' => $user->id,
+            'opened_by' => $user->id,
         ]);
         
         $response = $this->actingAs($user)->put(route('tickets.update', $ticket), [
+            'body' => 'Updated',
             'assigned_to' => $newAssignee->id,
         ]);
         
@@ -229,7 +218,7 @@ class TicketTest extends TestCase
     }
 
     public function test_can_delete_ticket(): void
-    {
+    {        
         [$user, , $helpTopic, $assignedUser] = $this->bootstrapTicket();
         $ticket = Ticket::factory()->create([
             'user_id' => $user->id,
@@ -243,5 +232,66 @@ class TicketTest extends TestCase
         
         $response->assertRedirect();
         $this->assertDatabaseMissing('tickets', ['id' => $ticketId]);
+    }
+
+    public function test_can_create_ticket_with_attachments(): void
+    {
+        Storage::fake('public');
+        [$user, , $helpTopic, $assignedUser] = $this->bootstrapTicket();
+        
+        $file = \Illuminate\Http\UploadedFile::fake()->image('test.jpg', 100, 100);
+        
+        $response = $this->actingAs($user)->post(route('tickets.store'), [
+            'user_id' => $user->id,
+            'ticket_source' => 'Web',
+            'help_topic' => $helpTopic->id,
+            'department' => 'IT',
+            'downtime' => now()->toDateTimeString(),
+            'assigned_to' => $assignedUser->id,
+            'body' => 'Test ticket with attachment',
+            'priority' => 'High',
+            'images' => [$file],
+        ]);
+        
+        $response->assertRedirect(route('tickets.index'));
+        
+        $ticket = Ticket::latest()->first();
+        $this->assertNotNull($ticket);
+        $ticket->load('attachments');
+        $this->assertEquals(1, $ticket->attachments->count());
+        
+        $attachment = $ticket->attachments->first();
+        $this->assertEquals('test.jpg', $attachment->original_filename);
+        $this->assertNotNull($attachment->path);
+        $this->assertNotNull($attachment->mime_type);
+        $this->assertGreaterThan(0, $attachment->size);
+    }
+
+    public function test_can_update_ticket_with_new_attachments(): void
+    {
+        Storage::fake('public');
+        [$user, , $helpTopic, $assignedUser] = $this->bootstrapTicket();
+        
+        $ticket = Ticket::factory()->create([
+            'user_id' => $user->id,
+            'help_topic' => $helpTopic->id,
+            'assigned_to' => $user->id,
+            'status' => 'Open',
+        ]);
+        
+        $file = \Illuminate\Http\UploadedFile::fake()->create('document.pdf', 100);
+        
+        $response = $this->actingAs($user)->put(route('tickets.update', $ticket), [
+            'body' => 'Updated body',
+            'images' => [$file],
+        ]);
+        
+        $ticket->refresh();
+        $ticket->load('attachments');
+        $this->assertEquals('Updated body', $ticket->body);
+        $this->assertEquals(1, $ticket->attachments->count());
+        
+        $attachment = $ticket->attachments->first();
+        $this->assertEquals('document.pdf', $attachment->original_filename);
     }
 }

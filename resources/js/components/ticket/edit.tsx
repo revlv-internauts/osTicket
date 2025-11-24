@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { CheckCircle, XCircle, Bold, Italic, List, ListOrdered, Heading1, Heading2, Heading3, Code, Quote, Underline as UnderlineIcon, Image as ImageIcon } from "lucide-react";
+import { CheckCircle, XCircle, Bold, Italic, List, ListOrdered, Heading1, Heading2, Heading3, Code, Quote, Underline as UnderlineIcon, Image as ImageIcon, Paperclip } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { router, usePage } from "@inertiajs/react";
 import { toast } from "sonner";
@@ -123,10 +123,10 @@ const TicketEdit: React.FC<Props> = ({
     }, [isTicketClosed, editor]);
 
     // Handle image upload to editor
-    const handleEditorImageUpload = () => {
+    const handleEditorFileUpload = () => {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = 'image/*';
+        input.accept = '.jpeg,.jpg,.png,.gif,.pdf,.doc,.docx,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         input.multiple = true;
         
         input.onchange = async (e) => {
@@ -135,16 +135,30 @@ const TicketEdit: React.FC<Props> = ({
 
             const currentImages = data.images || [];
             const newFiles: File[] = [];
+            const allowedExtensions = ['jpeg', 'jpg', 'png', 'gif', 'pdf', 'doc', 'docx'];
             
             for (const file of Array.from(files)) {
+                // Get file extension
+                const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
+                
+                // Check file extension (this is the most reliable method)
+                if (!allowedExtensions.includes(fileExtension)) {
+                    toast.error(`File "${file.name}" is not a valid format. Only JPEG, JPG, PNG, GIF, PDF, DOC, and DOCX are allowed.`);
+                    continue;
+                }
+
                 // Check individual file size (8MB)
                 const maxFileSize = 8 * 1024 * 1024; // 8MB
                 if (file.size > maxFileSize) {
-                    toast.error(`File "${file.name}" exceeds 8MB limit`);
+                    toast.error(`File "${file.name}" exceeds 8MB limit.`);
                     continue;
                 }
                 
                 newFiles.push(file);
+            }
+
+            if (newFiles.length === 0) {
+                return;
             }
             
             // Check total size (8MB)
@@ -152,21 +166,37 @@ const TicketEdit: React.FC<Props> = ({
             const maxTotalSize = 8 * 1024 * 1024; // 8MB
             
             if (totalSize > maxTotalSize) {
-                toast.error('Total file size exceeds 8MB limit');
+                toast.error('Total file size exceeds 8MB limit. Please remove some files or select smaller files.');
                 return;
             }
 
+            // Process files
             newFiles.forEach(file => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const base64 = e.target?.result as string;
-                    editor?.chain().focus().setImage({ src: base64 }).run();
-                };
-                reader.readAsDataURL(file);
+                const fileExtension = file.name.split('.').pop()?.toLowerCase();
+                const isImage = ['jpeg', 'jpg', 'png', 'gif'].includes(fileExtension || '');
+                
+                if (isImage) {
+                    // For images, insert into editor
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const base64 = e.target?.result as string;
+                        editor?.chain().focus().setImage({ src: base64 }).run();
+                    };
+                    reader.onerror = () => {
+                        toast.error(`Failed to read file "${file.name}"`);
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    // For documents, show file attachment in editor
+                    const fileIcon = fileExtension === 'pdf' ? '📄' : '📝';
+                    const fileLink = `<p><span class="file-attachment" data-filename="${file.name}">${fileIcon} ${file.name}</span></p>`;
+                    editor?.commands.insertContent(fileLink);
+                }
             });
 
-            // Also add to images array for upload
+            // Add to images array for upload
             setData(prev => ({ ...prev, images: [...currentImages, ...newFiles] }));
+            toast.success(`${newFiles.length} file(s) added successfully`);
         };
 
         input.click();
@@ -548,9 +578,10 @@ const TicketEdit: React.FC<Props> = ({
                                     type="button"
                                     variant="ghost"
                                     size="sm"
-                                    onClick={handleEditorImageUpload}
+                                    onClick={handleEditorFileUpload}
+                                    title="Attach files"
                                 >
-                                    <ImageIcon className="h-4 w-4" />
+                                    <Paperclip className="h-4 w-4" />
                                 </Button>
                             </div>
                         )}
@@ -642,6 +673,21 @@ const TicketEdit: React.FC<Props> = ({
                                     float: left;
                                     height: 0;
                                     pointer-events: none;
+                                }
+                                .ProseMirror .file-attachment {
+                                    display: inline-block;
+                                    padding: 0.5em 1em;
+                                    background-color: rgba(59, 130, 246, 0.1);
+                                    border: 1px solid rgba(59, 130, 246, 0.3);
+                                    border-radius: 5px;
+                                    color: #3b82f6;
+                                    font-weight: 500;
+                                    margin: 0.25em;
+                                    cursor: default;
+                                }
+                                .ProseMirror .file-attachment:hover {
+                                    background-color: rgba(59, 130, 246, 0.2);
+                                    border-color: rgba(59, 130, 246, 0.5);
                                 }
                             `}</style>
                             <EditorContent editor={editor} />

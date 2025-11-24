@@ -25,7 +25,6 @@ return new class extends Migration
             $table->integer('resolution_time')->nullable();
             $table->foreignId('assigned_to')->nullable()->constrained('users')->onDelete('set null');
             $table->longText('body')->nullable();
-            $table->json('image_paths')->nullable();
             $table->string('status', 50)->default('Open');
             $table->string('priority', 50)->nullable();
             $table->timestamps();

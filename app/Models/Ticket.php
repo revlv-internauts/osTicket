@@ -28,7 +28,6 @@ class Ticket extends Model
         'resolution_time',
         'assigned_to',
         'body',
-        'image_paths',
         'status',
         'priority',
     ];
@@ -130,5 +129,13 @@ class Ticket extends Model
     public function histories()
     {
         return $this->hasMany(TicketHistory::class);
+    }
+
+    /**
+     * Get the attachments for the ticket.
+     */
+    public function attachments()
+    {
+        return $this->hasMany(TicketAttachment::class);
     }
 }

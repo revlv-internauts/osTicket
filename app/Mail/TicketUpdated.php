@@ -7,6 +7,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Mail\Mailables\Address;
 
@@ -59,6 +60,16 @@ class TicketUpdated extends Mailable
      */
     public function attachments(): array
     {
-        return [];
+        $attachments = [];
+        
+        if ($this->ticket->attachments && $this->ticket->attachments->count() > 0) {
+            foreach ($this->ticket->attachments as $attachment) {
+                $attachments[] = Attachment::fromPath(
+                    storage_path('app/public/' . $attachment->path)
+                )->as($attachment->original_filename);
+            }
+        }
+        
+        return $attachments;
     }
 }

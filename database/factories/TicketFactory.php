@@ -16,7 +16,6 @@ class TicketFactory extends Factory
         return [
             'ticket_name' => 'TICKET-' . $this->faker->unique()->numberBetween(1000, 9999),
             'user_id' => User::factory(),
-            'recipient' => $this->faker->optional()->safeEmail(),
             'ticket_source' => $this->faker->randomElement(['Email','Phone']),
             'help_topic' => HelpTopic::factory(),
             'department' => $this->faker->randomElement(['IT', 'NOC', 'Support']),
@@ -27,7 +26,6 @@ class TicketFactory extends Factory
             'resolution_time' => null,
             'assigned_to' => User::factory(),
             'body' => $this->faker->paragraph(),
-            'image_paths' => null,
             'status' => $this->faker->randomElement(['Open', 'Closed']),
             'priority' => $this->faker->randomElement(['Low', 'Medium', 'High']),
         ];

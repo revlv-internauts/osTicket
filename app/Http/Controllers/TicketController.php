@@ -121,11 +121,27 @@ class TicketController extends Controller
             'body'          => 'required|string',
             'status'        => 'nullable|string',
             'priority'      => 'required|string',
-            'images.*'      => 'nullable|file',
+            'images.*'      => 'nullable|file|mimes:jpeg,jpg,png,gif,pdf,doc,docx|max:8192',
+        ], [
+            'images.*.mimes' => 'Each file must be a valid image (jpeg, jpg, png, gif) or document (pdf, doc, docx).',
+            'images.*.max' => 'Each file must not exceed 8MB in size.',
         ]);
 
         if (Auth::id() != $validated['user_id']) {
             return back()->withErrors(['user_id' => 'You cannot create tickets for other users.']);
+        }
+
+        // Additional validation for total file size
+        if ($request->hasFile('images')) {
+            $totalSize = 0;
+            foreach ($request->file('images') as $file) {
+                $totalSize += $file->getSize();
+            }
+            
+            $maxTotalSize = 8 * 1024 * 1024; // 8MB
+            if ($totalSize > $maxTotalSize) {
+                return back()->withErrors(['images' => 'Total file size must not exceed 8MB.'])->withInput();
+            }
         }
 
         $ticketName = $this->generateTicketName($validated['help_topic']);
@@ -138,7 +154,6 @@ class TicketController extends Controller
         $validated['opened_by'] = Auth::id();
         
         $processedResponse = $validated['body'];
-        $imagePaths = [];
         
         if (!empty($processedResponse)) {
             preg_match_all('/<img[^>]+src="data:image\/([^;]+);base64,([^"]+)"[^>]*>/i', $processedResponse, $matches);
@@ -152,22 +167,13 @@ class TicketController extends Controller
                 $path = 'ticket-images/' . $fileName;
                 
                 Storage::disk('public')->put($path, $imageData);
-                $imagePaths[] = $path;
 
                 $url = asset('storage/' . $path);
                 $processedResponse = str_replace($fullMatch, '<img src="' . $url . '" alt="Ticket Image" />', $processedResponse);
             }
         }
         
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                $path = $image->store('ticket-images', 'public');
-                $imagePaths[] = $path;
-            }
-        }
-        
         $validated['body'] = $processedResponse;
-        $validated['image_paths'] = !empty($imagePaths) ? json_encode($imagePaths) : null;
         
         $ccEmails = $validated['cc'] ?? [];
         $recipientEmails = $validated['recipient'] ?? [];
@@ -176,6 +182,22 @@ class TicketController extends Controller
         unset($validated['images']);
         
         $ticket = Ticket::create($validated);
+        
+        // Store file attachments in separate table
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $file) {
+                $fileName = time() . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs('ticket-attachments', $fileName, 'public');
+                
+                $ticket->attachments()->create([
+                    'original_filename' => $file->getClientOriginalName(),
+                    'filename' => $fileName,
+                    'path' => $path,
+                    'mime_type' => $file->getMimeType(),
+                    'size' => $file->getSize(),
+                ]);
+            }
+        }
 
         if (!empty($ccEmails)) {
             $ticket->ccEmails()->attach($ccEmails);
@@ -185,7 +207,7 @@ class TicketController extends Controller
             $ticket->recipientEmails()->attach($recipientEmails);
         }
 
-        $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails']);
+        $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails', 'recipientEmails', 'attachments']);
 
         try {
             $mailtrapService = new MailtrapService();
@@ -262,6 +284,7 @@ class TicketController extends Controller
             'helpTopicRelation', 
             'ccEmails',
             'recipientEmails',
+            'attachments',
             'openedByUser',
             'closedByUser'
         ]);
@@ -289,8 +312,24 @@ class TicketController extends Controller
             'assigned_to' => 'nullable|exists:users,id',
             'priority' => 'nullable|string|in:Low,Medium,High',
             'images' => 'nullable|array',
-            'images.*' => 'nullable|file',
+            'images.*' => 'nullable|file|mimes:jpeg,jpg,png,gif,pdf,doc,docx|max:8192',
+        ], [
+            'images.*.mimes' => 'Each file must be a valid image (jpeg, jpg, png, gif) or document (pdf, doc, docx).',
+            'images.*.max' => 'Each file must not exceed 8MB in size.',
         ]);
+
+        // Additional validation for total file size
+        if ($request->hasFile('images')) {
+            $totalSize = 0;
+            foreach ($request->file('images') as $file) {
+                $totalSize += $file->getSize();
+            }
+            
+            $maxTotalSize = 8 * 1024 * 1024; // 8MB
+            if ($totalSize > $maxTotalSize) {
+                return back()->withErrors(['images' => 'Total file size must not exceed 8MB.'])->withInput();
+            }
+        }
 
         $updateData = [];
         $changes = [];
@@ -381,19 +420,25 @@ class TicketController extends Controller
         }
 
         if ($request->hasFile('images')) {
-            $imagePaths = json_decode($ticket->image_paths ?? '[]', true);
-            foreach ($request->file('images') as $image) {
-                $path = $image->store('ticket-images', 'public');
-                $imagePaths[] = $path;
+            foreach ($request->file('images') as $file) {
+                $fileName = time() . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs('ticket-attachments', $fileName, 'public');
+                
+                $ticket->attachments()->create([
+                    'original_filename' => $file->getClientOriginalName(),
+                    'filename' => $fileName,
+                    'path' => $path,
+                    'mime_type' => $file->getMimeType(),
+                    'size' => $file->getSize(),
+                ]);
             }
-            $updateData['image_paths'] = json_encode($imagePaths);
             $changes['Attachments'] = 'Added new files';
         }
 
         if (!empty($updateData)) {
             $ticket->update($updateData);
             $ticket->refresh();
-            $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails', 'recipientEmails', 'closedByUser']);
+            $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails', 'recipientEmails', 'attachments', 'closedByUser']);
 
             try {
                 $mailtrapService = new MailtrapService();
