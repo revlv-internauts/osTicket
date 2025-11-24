@@ -121,6 +121,7 @@ export default function TicketsTable({
 }: TicketProps) {
     const pageProps = usePage().props as any;
     const tickets = propTickets ?? (pageProps.tickets ?? []);
+    const currentUserId = pageProps.auth?.user?.id ?? null;
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -196,6 +197,11 @@ export default function TicketsTable({
         ticket.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
         ticket.department.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const canEditTicket = (ticket: Ticket | null) => {
+        if (!ticket || !currentUserId) return false;
+        return currentUserId === ticket.opened_by || currentUserId === ticket.assigned_to;
+    };
 
     const handleSort = (field: SortField) => {
         if (sortField === field) {
@@ -708,25 +714,27 @@ export default function TicketsTable({
                             <Button variant="outline" onClick={handleCloseDialog} className="text-base px-6 py-2">
                                 Close
                             </Button>
-                            <div className="flex gap-2">
-                                {selectedTicket?.status !== 'Closed' && (
-                                    <Button onClick={handleUpdateFromDialog} className="text-base px-6 py-2">
-                                        <Pencil className="h-5 w-5 mr-2" />
-                                        Update Ticket
-                                    </Button>
-                                )}
-                                <Button 
-                                    variant={selectedTicket?.status === 'Closed' ? 'default' : 'destructive'}
-                                    onClick={handleCloseFromDialog} 
-                                    className="text-base px-6 py-2"
-                                >
-                                    {selectedTicket?.status === 'Closed' ? (
-                                        <><CheckCircle className="h-5 w-5 mr-2" />Reopen Ticket</>
-                                    ) : (
-                                        <><XCircle className="h-5 w-5 mr-2" />Close Ticket</>
+                            {canEditTicket(selectedTicket) && (
+                                <div className="flex gap-2">
+                                    {selectedTicket?.status !== 'Closed' && (
+                                        <Button onClick={handleUpdateFromDialog} className="text-base px-6 py-2">
+                                            <Pencil className="h-5 w-5 mr-2" />
+                                            Update Ticket
+                                        </Button>
                                     )}
-                                </Button>
-                            </div>
+                                    <Button 
+                                        variant={selectedTicket?.status === 'Closed' ? 'default' : 'destructive'}
+                                        onClick={handleCloseFromDialog} 
+                                        className="text-base px-6 py-2"
+                                    >
+                                        {selectedTicket?.status === 'Closed' ? (
+                                            <><CheckCircle className="h-5 w-5 mr-2" />Reopen Ticket</>
+                                        ) : (
+                                            <><XCircle className="h-5 w-5 mr-2" />Close Ticket</>
+                                        )}
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </DialogFooter>
                 </DialogContent>
@@ -751,6 +759,7 @@ export default function TicketsTable({
                             onSuccess={handleEditSuccess}
                             redirectUrl={null}
                             mode={editMode}
+                            canEdit={canEditTicket(selectedTicket)}
                         />
                     )}
                 </DialogContent>

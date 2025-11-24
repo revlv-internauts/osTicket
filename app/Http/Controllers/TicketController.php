@@ -226,10 +226,24 @@ class TicketController extends Controller
     }
 
     /**
+     * Check if the current user can edit/close the ticket.
+     */
+    private function canEditTicket(Ticket $ticket)
+    {
+        $userId = Auth::id();
+        return $userId === $ticket->opened_by || $userId === $ticket->assigned_to;
+    }
+
+    /**
      * Show the form for editing the specified resource.
      */
     public function edit(Ticket $ticket)
     {
+        if (!$this->canEditTicket($ticket)) {
+            return redirect()->route('tickets.index')
+                ->with('error', 'You do not have permission to edit this ticket. Only the user who opened it or the assigned user can edit.');
+        }
+
         $ticket->load([
             'user', 
             'assignedToUser', 
@@ -252,6 +266,10 @@ class TicketController extends Controller
      */
     public function update(Request $request, Ticket $ticket)
     {
+        if (!$this->canEditTicket($ticket)) {
+            return back()->withErrors(['authorization' => 'You do not have permission to update this ticket. Only the user who opened it or the assigned user can update.']);
+        }
+
         $validated = $request->validate([
             'body' => 'nullable|string',
             'status' => 'nullable|string|in:Open,Closed',

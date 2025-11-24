@@ -61,13 +61,15 @@ type Props = {
     redirectUrl?: string | null;
     onSuccess?: () => void;
     mode?: 'update' | 'close' | 'reopen' | null;
+    canEdit?: boolean;
 };
 
 const TicketEdit: React.FC<Props> = ({
     ticket,
     redirectUrl = "/tickets",
     onSuccess,
-    mode = null
+    mode = null,
+    canEdit = true
 }) => {
     const { users = [] } = usePage().props as any;
     
@@ -645,73 +647,77 @@ const TicketEdit: React.FC<Props> = ({
                 </form>
             </CardContent>
             <CardFooter className="flex justify-end">
-                <div className="flex gap-2">
-                    {mode === 'update' && (
-                        <Button
-                            onClick={handleSubmit}
-                            type="submit"
-                            disabled={processing}
-                        >
-                            {processing ? "Updating..." : "Update Ticket"}
-                        </Button>
-                    )}
-                    {mode === 'close' && (
-                        <Button
-                            variant="destructive"
-                            onClick={handleCloseTicket}
-                            type="button"
-                            disabled={processing}
-                        >
-                            <XCircle className="h-4 w-4 mr-2" />
-                            {processing ? "Closing..." : "Close Ticket"}
-                        </Button>
-                    )}
-                    {mode === 'reopen' && (
-                        <Button
-                            variant="default"
-                            onClick={handleReopenTicket}
-                            type="button"
-                            disabled={processing}
-                        >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            {processing ? "Reopening..." : "Reopen Ticket"}
-                        </Button>
-                    )}
-                    {!mode && (
-                        <>
-                            {isTicketClosed ? (
-                                <Button
-                                    variant="default"
-                                    onClick={handleReopenTicket}
-                                    type="button"
-                                    disabled={processing}
-                                >
-                                    <CheckCircle className="h-4 w-4 mr-2" />
-                                    {processing ? "Reopening..." : "Reopen Ticket"}
-                                </Button>
-                            ) : (
-                                <>                            
+                {canEdit ? (
+                    <div className="flex gap-2">
+                        {mode === 'update' && (
+                            <Button
+                                onClick={handleSubmit}
+                                type="submit"
+                                disabled={processing}
+                            >
+                                {processing ? "Updating..." : "Update Ticket"}
+                            </Button>
+                        )}
+                        {mode === 'close' && (
+                            <Button
+                                variant="destructive"
+                                onClick={handleCloseTicket}
+                                type="button"
+                                disabled={processing}
+                            >
+                                <XCircle className="h-4 w-4 mr-2" />
+                                {processing ? "Closing..." : "Close Ticket"}
+                            </Button>
+                        )}
+                        {mode === 'reopen' && (
+                            <Button
+                                variant="default"
+                                onClick={handleReopenTicket}
+                                type="button"
+                                disabled={processing}
+                            >
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                {processing ? "Reopening..." : "Reopen Ticket"}
+                            </Button>
+                        )}
+                        {!mode && (
+                            <>
+                                {isTicketClosed ? (
                                     <Button
-                                        onClick={handleSubmit}
-                                        type="submit"
-                                        disabled={processing}
-                                    >
-                                        {processing ? "Updating..." : "Update Body"}
-                                    </Button>
-                                    <Button
-                                        variant="destructive"
-                                        onClick={handleCloseTicket}
+                                        variant="default"
+                                        onClick={handleReopenTicket}
                                         type="button"
                                         disabled={processing}
                                     >
-                                        <XCircle className="h-4 w-4 mr-2" />
-                                        {processing ? "Closing..." : "Close Ticket"}
+                                        <CheckCircle className="h-4 w-4 mr-2" />
+                                        {processing ? "Reopening..." : "Reopen Ticket"}
                                     </Button>
-                                </>
-                            )}
-                        </>
-                    )}
-                </div>
+                                ) : (
+                                    <>                            
+                                        <Button
+                                            onClick={handleSubmit}
+                                            type="submit"
+                                            disabled={processing}
+                                        >
+                                            {processing ? "Updating..." : "Update Body"}
+                                        </Button>
+                                        <Button
+                                            variant="destructive"
+                                            onClick={handleCloseTicket}
+                                            type="button"
+                                            disabled={processing}
+                                        >
+                                            <XCircle className="h-4 w-4 mr-2" />
+                                            {processing ? "Closing..." : "Close Ticket"}
+                                        </Button>
+                                    </>
+                                )}
+                            </>
+                        )}
+                    </div>
+                ) : (
+                    <p className="text-sm text-muted-foreground">You do not have permission to edit this ticket.</p>
+                )}
             </CardFooter>
         </Card>
     );
