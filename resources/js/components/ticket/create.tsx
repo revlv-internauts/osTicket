@@ -10,7 +10,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { CalendarIcon, UserIcon, Plus, X, Clock, Bold, Italic, List, ListOrdered, Heading1, Heading2, Heading3, Code, Quote, Underline as UnderlineIcon, Image as ImageIcon, Paperclip } from "lucide-react";
+import { CalendarIcon, UserIcon, Plus, X, Clock, Bold, Italic, List, ListOrdered, Heading1, Heading2, Heading3, Code, Quote, Underline as UnderlineIcon, Image as ImageIcon, Paperclip, Download, Trash2, File as FileIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import {
     Popover,
@@ -198,14 +198,14 @@ const TicketCreate: React.FC<Props> = ({
         }
     };
 
-    // Handle image upload to editor
+    // Handle file attachment upload
     const handleEditorImageUpload = () => {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = '.jpeg,.jpg,.png,.gif,.pdf,.doc,.docx,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         input.multiple = true;
         
-        input.onchange = async (e) => {
+        input.onchange = (e) => {
             const files = (e.target as HTMLInputElement).files;
             if (!files) return;
 
@@ -217,7 +217,7 @@ const TicketCreate: React.FC<Props> = ({
                 // Get file extension
                 const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
                 
-                // Check file extension (this is the most reliable method)
+                // Check file extension
                 if (!allowedExtensions.includes(fileExtension)) {
                     toast.error(`File "${file.name}" is not a valid format. Only JPEG, JPG, PNG, GIF, PDF, DOC, and DOCX are allowed.`);
                     continue;
@@ -246,35 +246,52 @@ const TicketCreate: React.FC<Props> = ({
                 return;
             }
 
-            // Process files
-            newFiles.forEach(file => {
-                const fileExtension = file.name.split('.').pop()?.toLowerCase();
-                const isImage = ['jpeg', 'jpg', 'png', 'gif'].includes(fileExtension || '');
-                
-                if (isImage) {
-                    // For images, insert into editor
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const base64 = e.target?.result as string;
-                        editor?.chain().focus().setImage({ src: base64 }).run();
-                    };
-                    reader.onerror = () => {
-                        toast.error(`Failed to read file "${file.name}"`);
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    // For documents, show file attachment in editor
-                    const fileIcon = fileExtension === 'pdf' ? '📄' : '📝';
-                    const fileLink = `<p><span class="file-attachment" data-filename="${file.name}">${fileIcon} ${file.name}</span></p>`;
-                    editor?.commands.insertContent(fileLink);
-                }
-            });
-            
             setData("images", [...currentImages, ...newFiles]);
             toast.success(`${newFiles.length} file(s) added successfully`);
         };
 
         input.click();
+    };
+
+    // Handle file removal
+    const removeAttachedFile = (index: number) => {
+        const updatedFiles = data.images.filter((_, i) => i !== index);
+        setData("images", updatedFiles);
+        toast.success("File removed successfully");
+    };
+
+    // Handle file download
+    const downloadFile = (file: File) => {
+        const url = URL.createObjectURL(file);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    // Get file icon based on extension
+    const getFileIcon = (fileName: string) => {
+        const ext = fileName.split('.').pop()?.toLowerCase();
+        if (['jpg', 'jpeg', 'png', 'gif'].includes(ext || '')) {
+            return '🖼️';
+        } else if (ext === 'pdf') {
+            return '📄';
+        } else if (['doc', 'docx'].includes(ext || '')) {
+            return '📝';
+        }
+        return '📎';
+    };
+
+    // Format file size for display
+    const formatFileSize = (bytes: number) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
     };
 
     const handleRecipientEmailToggle = (emailId: number) => {
@@ -1015,6 +1032,76 @@ const TicketCreate: React.FC<Props> = ({
 
                     </div>
 
+                    {/* File Attachments Section */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="attachments">
+                                Attachments
+                            </Label>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleEditorImageUpload}
+                            >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add File
+                            </Button>
+                        </div>
+
+                        {data.images && data.images.length > 0 ? (
+                            <div className="border rounded-lg bg-muted/30 p-4">
+                                <div className="space-y-2">
+                                    {data.images.map((file, index) => (
+                                        <div
+                                            key={`${file.name}-${index}`}
+                                            className="flex items-center justify-between bg-background border rounded-md p-3 hover:bg-muted/50 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                <span className="text-lg">{getFileIcon(file.name)}</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium truncate">{file.name}</p>
+                                                    <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => downloadFile(file)}
+                                                    title="Download file"
+                                                    className="h-8 w-8 p-0"
+                                                >
+                                                    <Download className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => removeAttachedFile(index)}
+                                                    title="Remove file"
+                                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-3 pt-3 border-t">
+                                    Total: {data.images.length} file(s) • {formatFileSize(data.images.reduce((sum, f) => sum + f.size, 0))}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                                <Paperclip className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                                <p className="text-sm text-muted-foreground">No files attached yet</p>
+                                <p className="text-xs text-muted-foreground mt-1">Click "Add File" to attach images or documents</p>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Body - Tiptap Editor */}
                     <div className="space-y-2">
                         <Label 
@@ -1082,16 +1169,6 @@ const TicketCreate: React.FC<Props> = ({
                                 className={editor?.isActive('heading', { level: 3 }) ? 'bg-muted' : ''}
                             >
                                 <Heading3 className="h-4 w-4" />
-                            </Button>
-                            <div className="border-l mx-1" />
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleEditorImageUpload}
-                                title="Attach files"
-                            >
-                                <Paperclip className="h-4 w-4" />
                             </Button>
                         </div>
 
@@ -1165,12 +1242,6 @@ const TicketCreate: React.FC<Props> = ({
                                     margin-bottom: 1em;
                                     color: #666;
                                 }
-                                .ProseMirror img {
-                                    max-width: 100%;
-                                    height: auto;
-                                    border-radius: 5px;
-                                    margin: 1em 0;
-                                }
                                 .ProseMirror a {
                                     color: #3b82f6;
                                     text-decoration: underline;
@@ -1186,21 +1257,6 @@ const TicketCreate: React.FC<Props> = ({
                                     height: 0;
                                     pointer-events: none;
                                 }
-                                .ProseMirror .file-attachment {
-                                    display: inline-block;
-                                    padding: 0.5em 1em;
-                                    background-color: rgba(59, 130, 246, 0.1);
-                                    border: 1px solid rgba(59, 130, 246, 0.3);
-                                    border-radius: 5px;
-                                    color: #3b82f6;
-                                    font-weight: 500;
-                                    margin: 0.25em;
-                                    cursor: default;
-                                }
-                                .ProseMirror .file-attachment:hover {
-                                    background-color: rgba(59, 130, 246, 0.2);
-                                    border-color: rgba(59, 130, 246, 0.5);
-                                }
                             `}</style>
                             <EditorContent editor={editor} />
                         </div>
@@ -1209,11 +1265,6 @@ const TicketCreate: React.FC<Props> = ({
                         )}
                         {errors.body && (
                             <p className="text-xs text-red-500">{errors.body}</p>
-                        )}
-                        {data.images && data.images.length > 0 && (
-                            <p className="text-xs text-muted-foreground mt-2">
-                                {data.images.length} file(s) attached
-                            </p>
                         )}
                     </div>
                 </form>

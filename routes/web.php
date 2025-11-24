@@ -39,6 +39,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     
     Route::resource('tickets', TicketController::class);
+    Route::get('/tickets/{ticket}/attachments/{attachmentId}/download', [TicketController::class, 'downloadAttachment'])->name('tickets.attachment.download');
+    Route::get('/tickets/{ticket}/attachments/{attachmentId}/preview', [TicketController::class, 'previewAttachment'])->name('tickets.attachment.preview');
     
 
     Route::resource('emails', EmailController::class);

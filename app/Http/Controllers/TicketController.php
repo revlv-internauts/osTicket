@@ -28,7 +28,8 @@ class TicketController extends Controller
             'ccEmails',
             'recipientEmails',
             'openedByUser',
-            'closedByUser'
+            'closedByUser',
+            'attachments'
         ])
         ->orderBy('created_at', 'desc')
         ->get();
@@ -40,7 +41,8 @@ class TicketController extends Controller
             'ccEmails',
             'recipientEmails',
             'openedByUser',
-            'closedByUser'
+            'closedByUser',
+            'attachments'
         ])
         ->where('user_id', Auth::id())
         ->orderBy('created_at', 'desc')
@@ -500,5 +502,45 @@ class TicketController extends Controller
         }
     }
 
-    
+    /**
+     * Download a ticket attachment.
+     */
+    public function downloadAttachment(Ticket $ticket, $attachmentId)
+    {
+        try {
+            $attachment = $ticket->attachments()->where('id', $attachmentId)->firstOrFail();
+            $filePath = storage_path('app/public/' . $attachment->path);
+            
+            if (!file_exists($filePath)) {
+                return response()->json(['error' => 'File not found'], 404);
+            }
+
+            return response()->download($filePath, $attachment->original_filename, [
+                'Content-Type' => $attachment->mime_type,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to download file'], 500);
+        }
+    }
+
+    /**
+     * Preview a ticket attachment (for images).
+     */
+    public function previewAttachment(Ticket $ticket, $attachmentId)
+    {
+        try {
+            $attachment = $ticket->attachments()->where('id', $attachmentId)->firstOrFail();
+            $filePath = storage_path('app/public/' . $attachment->path);
+            
+            if (!file_exists($filePath)) {
+                return response()->json(['error' => 'File not found'], 404);
+            }
+
+            return response()->file($filePath, [
+                'Content-Type' => $attachment->mime_type,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to load file'], 500);
+        }
+    }
 }

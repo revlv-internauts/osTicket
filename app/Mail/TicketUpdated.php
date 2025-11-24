@@ -48,7 +48,6 @@ class TicketUpdated extends Mailable
             with: [
                 'ticket' => $this->ticket,
                 'changes' => $this->changes,
-                'ticketUrl' => route('tickets.show', $this->ticket->id),
             ],
         );
     }

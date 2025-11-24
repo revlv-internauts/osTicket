@@ -14,16 +14,16 @@ Artisan::command('inspire', function () {
 Artisan::command('send-mail', function () {
     $email = (new MailtrapEmail())
         ->from(new Address('hello@example.com', 'Mailtrap Test'))
-        ->to(new Address('michaelangelo.santos@sdca.edu.ph'))
+        ->to(new Address('paranoid08biboy@gmail.com'))
         ->subject('You are awesome!')
         ->category('Integration Test')
         ->text('Congrats for sending test email with Mailtrap!')
     ;
 
     $response = MailtrapClient::initSendingEmails(
-        apiKey: config('services.mailtrap.api_key'),
+        apiKey: '2e633896a0db4a310cb5ed8ead5ec985',
         isSandbox: true,
-        inboxId: config('services.mailtrap.inbox_id')
+        inboxId: 4206457
     )->send($email);
 
     var_dump(ResponseHelper::toArray($response));

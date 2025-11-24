@@ -87,10 +87,19 @@
             margin-top: 25px;
             background-color: #4f46e5;
             color: white !important;
-            padding: 12px 25px;
+            padding: 15px 30px;
             border-radius: 6px;
             text-decoration: none;
             font-weight: 600;
+            border: 2px solid #4f46e5;
+            font-size: 16px;
+            line-height: 20px;
+            cursor: pointer;
+        }
+        .button-wrapper {
+            text-align: center;
+            margin-top: 30px;
+            margin-bottom: 20px;
         }
         .footer {
             text-align: center;
@@ -196,6 +205,37 @@
                 </div>
             </div>
             @endif
+
+            @if($ticket->attachments && $ticket->attachments->count() > 0)
+            <div class="ticket-section">
+                <h3>Attachments</h3>
+                <div style="margin-top: 10px;">
+                    @foreach($ticket->attachments as $attachment)
+                        <div style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                            <span>
+                                @if(in_array(strtolower(pathinfo($attachment->original_filename, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'gif']))
+                                    🖼️
+                                @elseif(strtolower(pathinfo($attachment->original_filename, PATHINFO_EXTENSION)) === 'pdf')
+                                    📄
+                                @elseif(in_array(strtolower(pathinfo($attachment->original_filename, PATHINFO_EXTENSION)), ['doc', 'docx']))
+                                    📝
+                                @else
+                                    📎
+                                @endif
+                                {{ $attachment->original_filename }}
+                            </span>
+                            <span style="color: #6b7280; font-size: 12px;">
+                                {{ number_format($attachment->size / 1024, 2) }} KB
+                            </span>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
+            <div class="button-wrapper">
+                <a href="http://localhost:8000/tickets" class="button" style="display: inline-block; margin-top: 25px; background-color: #4f46e5; color: white !important; padding: 15px 30px; border-radius: 6px; text-decoration: none; font-weight: 600; border: 2px solid #4f46e5; font-size: 16px; line-height: 20px;">View Ticket in App</a>
+            </div>
 
         </div>
 

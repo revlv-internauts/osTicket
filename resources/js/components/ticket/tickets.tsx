@@ -7,7 +7,7 @@ import { usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Pencil, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Search, CheckCircle, XCircle, Paperclip } from 'lucide-react';
+import { Pencil, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Search, CheckCircle, XCircle, Paperclip, X, Download, Eye } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -53,6 +53,16 @@ interface Email {
     name?: string;
 }
 
+interface TicketAttachment {
+    id: number;
+    original_filename: string;
+    filename: string;
+    path: string;
+    mime_type: string;
+    size: number;
+    created_at?: string;
+}
+
 interface Ticket {
     id: number;
     ticket_name: string;
@@ -83,6 +93,7 @@ interface Ticket {
     priority?: string;
     created_at: string;
     updated_at: string;
+    attachments?: TicketAttachment[];
 }
 
 interface TicketProps {
@@ -114,6 +125,31 @@ const formatDate = (dateString: string) => {
     });
 };
 
+const getFileIcon = (fileName: string) => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'gif'].includes(ext || '')) {
+        return '🖼️';
+    } else if (ext === 'pdf') {
+        return '📄';
+    } else if (['doc', 'docx'].includes(ext || '')) {
+        return '📝';
+    }
+    return '📎';
+};
+
+const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+};
+
+const downloadAttachment = (attachment: TicketAttachment, ticketId: number) => {
+    const downloadUrl = `/tickets/${ticketId}/attachments/${attachment.id}/download`;
+    window.location.href = downloadUrl;
+};
+
 export default function TicketsTable({ 
     tickets: propTickets, 
     showUserId = true, 
@@ -131,6 +167,8 @@ export default function TicketsTable({
     const [ticketToDelete, setTicketToDelete] = useState<Ticket | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [previewAttachment, setPreviewAttachment] = useState<TicketAttachment | null>(null);
+    const [previewOpen, setPreviewOpen] = useState(false);
     
     const [sortField, setSortField] = useState<SortField | null>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -631,6 +669,48 @@ export default function TicketsTable({
 
                             <Separator />
 
+                            {/* Attachments */}
+                            {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
+                                <>
+                                    <div>
+                                        <p className="text-base font-medium text-muted-foreground mb-3">Attachments</p>
+                                        <div className="space-y-2">
+                                            {selectedTicket.attachments.map((attachment) => (
+                                                <div
+                                                    key={attachment.id}
+                                                    className="flex items-center justify-between bg-muted/30 border rounded-md p-3 hover:bg-muted/50 transition-colors group"
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setPreviewAttachment(attachment);
+                                                            setPreviewOpen(true);
+                                                        }}
+                                                        className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity text-left"
+                                                    >
+                                                        <span className="text-lg">{getFileIcon(attachment.original_filename)}</span>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-medium truncate underline">{attachment.original_filename}</p>
+                                                            <p className="text-xs text-muted-foreground">{formatFileSize(attachment.size)}</p>
+                                                        </div>
+                                                    </button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => downloadAttachment(attachment, selectedTicket.id)}
+                                                        className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <Download className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <Separator />
+                                </>
+                            )}
+
                             {/* Body with Tiptap Editor */}
                             <div>
                                 <p className="text-base font-medium text-muted-foreground mb-3">Body</p>
@@ -773,6 +853,74 @@ export default function TicketsTable({
                             mode={editMode}
                             canEdit={canEditTicket(selectedTicket)}
                         />
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Preview Attachment Dialog */}
+            <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <span>{getFileIcon(previewAttachment?.original_filename || '')}</span>
+                            <span className="truncate">{previewAttachment?.original_filename}</span>
+                        </DialogTitle>
+                        <button
+                            onClick={() => setPreviewOpen(false)}
+                            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </DialogHeader>
+                    
+                    {previewAttachment && (
+                        <div className="space-y-4">
+                            {/* Image Preview */}
+                            {['jpg', 'jpeg', 'png', 'gif'].includes(previewAttachment.original_filename.split('.').pop()?.toLowerCase() || '') && (
+                                <div className="flex justify-center">
+                                    <img 
+                                        src={`/storage/${previewAttachment.path}`}
+                                        alt={previewAttachment.original_filename}
+                                        className="max-w-full max-h-[500px] rounded-lg border"
+                                        onError={(e) => {
+                                            console.error('Failed to load image:', e);
+                                            // Fallback to preview endpoint
+                                            e.currentTarget.src = `/tickets/${selectedTicket?.id}/attachments/${previewAttachment.id}/preview`;
+                                        }}
+                                    />
+                                </div>
+                            )}
+
+                            {/* File Info */}
+                            <div className="bg-muted/30 rounded-lg p-4 space-y-2">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-sm font-medium text-muted-foreground">Filename</p>
+                                        <p className="text-sm break-all">{previewAttachment.original_filename}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-muted-foreground">File Size</p>
+                                        <p className="text-sm">{formatFileSize(previewAttachment.size)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-muted-foreground">Type</p>
+                                        <p className="text-sm">{previewAttachment.mime_type}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="default"
+                                    onClick={() => downloadAttachment(previewAttachment, selectedTicket?.id || 0)}
+                                    className="flex-1"
+                                >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Download
+                                </Button>
+                            </div>
+                        </div>
                     )}
                 </DialogContent>
             </Dialog>

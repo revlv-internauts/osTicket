@@ -48,7 +48,6 @@ class TicketCreated extends Mailable
             view: 'emails.ticket-created',
             with: [
                 'ticket' => $this->ticket,
-                'ticketUrl' => route('tickets.show', $this->ticket->id),
             ],
         );
     }
