@@ -76,6 +76,46 @@ class TicketTest extends TestCase
         ]);
     }
 
+    public function test_can_check_the_auto_increment(): void
+    {
+        [$user, $assignedUser] = $this->bootstrapTicket();
+        $helpTopic = HelpTopic::factory()->create(['name' => 'Support']);
+        
+        $response1 = $this->actingAs($user)->post(route('tickets.store'), [
+            'user_id' => $user->id,
+            'ticket_source' => 'Web',
+            'help_topic' => $helpTopic->id,
+            'department' => 'IT',
+            'downtime' => now()->toDateTimeString(),
+            'assigned_to' => $assignedUser->id,
+            'body' => 'First ticket body',
+            'priority' => 'High',
+        ]);
+        
+        $response1->assertRedirect(route('tickets.index'));
+        
+        $this->assertDatabaseHas('tickets', [
+            'ticket_name' => 'Support-0001',
+        ]);
+        
+        $response2 = $this->actingAs($user)->post(route('tickets.store'), [
+            'user_id' => $user->id,
+            'ticket_source' => 'Web',
+            'help_topic' => $helpTopic->id,
+            'department' => 'IT',
+            'downtime' => now()->toDateTimeString(),
+            'assigned_to' => $assignedUser->id,
+            'body' => 'Second ticket body',
+            'priority' => 'High',
+        ]);
+        
+        $response2->assertRedirect(route('tickets.index'));
+        
+        $this->assertDatabaseHas('tickets', [
+            'ticket_name' => 'Support-0002',
+        ]);
+    }
+
     public function test_validates_required_fields(): void
     {
         $user = User::factory()->create();
@@ -294,24 +334,60 @@ class TicketTest extends TestCase
         $attachment = $ticket->attachments->first();
         $this->assertEquals('document.pdf', $attachment->original_filename);
     }
-
-    public function test_unauthorized_user_cannot_update_ticket(): void
+     public function test_only_creator_and_assigned_can_close_ticket(): void
     {
         [$user, , $helpTopic, $assignedUser] = $this->bootstrapTicket();
         $unauthorizedUser = User::factory()->create();
-        
-        $ticket = Ticket::factory()->create([
+
+        $ticket1 = Ticket::factory()->create([
             'user_id' => $user->id,
             'help_topic' => $helpTopic->id,
             'assigned_to' => $assignedUser->id,
             'status' => 'Open',
+            'downtime' => now()->subHours(2),
+            'opened_by' => $user->id,
         ]);
         
-        $response = $this->actingAs($unauthorizedUser)->put(route('tickets.update', $ticket), [
-            'body' => 'Unauthorized update',
-            'priority' => 'High',
+        $response = $this->actingAs($user)->put(route('tickets.update', $ticket1), [
+            'status' => 'Closed',
+        ]);
+        
+        $response->assertSessionHasNoErrors();
+        $ticket1->refresh();
+        $this->assertEquals('Closed', $ticket1->status);
+ 
+        $ticket2 = Ticket::factory()->create([
+            'user_id' => $user->id,
+            'help_topic' => $helpTopic->id,
+            'assigned_to' => $assignedUser->id,
+            'status' => 'Open',
+            'downtime' => now()->subHours(2),
+            'opened_by' => $user->id,
+        ]);
+        
+        $response = $this->actingAs($assignedUser)->put(route('tickets.update', $ticket2), [
+            'status' => 'Closed',
+        ]);
+        
+        $response->assertSessionHasNoErrors();
+        $ticket2->refresh();
+        $this->assertEquals('Closed', $ticket2->status);
+
+        $ticket3 = Ticket::factory()->create([
+            'user_id' => $user->id,
+            'help_topic' => $helpTopic->id,
+            'assigned_to' => $assignedUser->id,
+            'status' => 'Open',
+            'downtime' => now()->subHours(2),
+            'opened_by' => $user->id,
+        ]);
+        
+        $response = $this->actingAs($unauthorizedUser)->put(route('tickets.update', $ticket3), [
+            'status' => 'Closed',
         ]);
         
         $response->assertStatus(403);
+        $ticket3->refresh();
+        $this->assertEquals('Open', $ticket3->status);
     }
 }
