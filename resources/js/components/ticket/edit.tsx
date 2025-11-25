@@ -571,141 +571,6 @@ const TicketEdit: React.FC<Props> = ({
                         </div>
                     </div>
 
-                    {/* File Attachments Section */}
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <Label htmlFor="attachments">
-                                Attachments
-                            </Label>
-                            {!isTicketClosed && (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleEditorFileUpload}
-                                >
-                                    <Plus className="h-4 w-4 mr-1" />
-                                    Add File
-                                </Button>
-                            )}
-                        </div>
-
-                        {/* Existing Attachments */}
-                        {(ticket.attachments && ticket.attachments.length > 0 || (data.images && data.images.length > 0)) ? (
-                            <div className="border rounded-lg bg-muted/30 p-4">
-                                {/* Display existing attachments */}
-                                {ticket.attachments && ticket.attachments.length > 0 && (
-                                    <div className="space-y-2">
-                                        <p className="text-xs font-semibold text-muted-foreground mb-3">Existing Attachments</p>
-                                        {ticket.attachments
-                                            .filter(att => !attachmentsToDelete.includes(att.id))
-                                            .map((attachment) => (
-                                                <div
-                                                    key={attachment.id}
-                                                    className="flex items-center justify-between bg-background border rounded-md p-3 hover:bg-muted/50 transition-colors"
-                                                >
-                                                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                        <span className="text-lg">{getFileIcon(attachment.original_filename)}</span>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-medium truncate">{attachment.original_filename}</p>
-                                                            <p className="text-xs text-muted-foreground">{formatFileSize(attachment.size)}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => downloadFile(attachment)}
-                                                            title="Download file"
-                                                            className="h-8 w-8 p-0"
-                                                        >
-                                                            <Download className="h-4 w-4" />
-                                                        </Button>
-                                                        {!isTicketClosed && (
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => removeAttachment(attachment.id)}
-                                                                title="Remove file"
-                                                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        {ticket.attachments.length > 0 && attachmentsToDelete.length > 0 && (
-                                            <p className="text-xs text-muted-foreground pt-2 border-t mt-2">
-                                                {attachmentsToDelete.length} attachment(s) marked for deletion
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Display new files to be uploaded */}
-                                {data.images && data.images.length > 0 && (
-                                    <div className="space-y-2 mt-3 pt-3 border-t">
-                                        <p className="text-xs font-semibold text-muted-foreground">New Files</p>
-                                        {data.images.map((file, index) => (
-                                            <div
-                                                key={`${file.name}-${index}`}
-                                                className="flex items-center justify-between bg-background border rounded-md p-3 hover:bg-muted/50 transition-colors"
-                                            >
-                                                <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                    <span className="text-lg">{getFileIcon(file.name)}</span>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-medium truncate">{file.name}</p>
-                                                        <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => downloadFile(file)}
-                                                        title="Download file"
-                                                        className="h-8 w-8 p-0"
-                                                    >
-                                                        <Download className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => removeNewFile(index)}
-                                                        title="Remove file"
-                                                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                <p className="text-xs text-muted-foreground mt-3 pt-3 border-t">
-                                    Total: {(ticket.attachments?.filter(att => !attachmentsToDelete.includes(att.id)) || []).length + (data.images?.length || 0)} file(s) • {formatFileSize(
-                                        (ticket.attachments?.filter(att => !attachmentsToDelete.includes(att.id)) || []).reduce((sum, f) => sum + f.size, 0) +
-                                        (data.images?.reduce((sum, f) => sum + f.size, 0) || 0)
-                                    )}
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="border-2 border-dashed rounded-lg p-6 text-center">
-                                <Paperclip className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-                                <p className="text-sm text-muted-foreground">No files attached yet</p>
-                                {!isTicketClosed && (
-                                    <p className="text-xs text-muted-foreground mt-1">Click "Add File" to attach images or documents</p>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
                     {/* Body - Tiptap Editor */}
                     <div className="space-y-2">
                         <Label htmlFor="body">Add/Edit Body</Label>
@@ -857,6 +722,141 @@ const TicketEdit: React.FC<Props> = ({
                         </div>
                         {errors.body && (
                             <p className="text-xs text-red-500">{errors.body}</p>
+                        )}
+                    </div>
+
+                    {/* File Attachments Section */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="attachments">
+                                Attachments
+                            </Label>
+                            {!isTicketClosed && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleEditorFileUpload}
+                                >
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    Add File
+                                </Button>
+                            )}
+                        </div>
+
+                        {/* Existing Attachments */}
+                        {(ticket.attachments && ticket.attachments.length > 0 || (data.images && data.images.length > 0)) ? (
+                            <div className="border rounded-lg bg-muted/30 p-4">
+                                {/* Display existing attachments */}
+                                {ticket.attachments && ticket.attachments.length > 0 && (
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-semibold text-muted-foreground mb-3">Existing Attachments</p>
+                                        {ticket.attachments
+                                            .filter(att => !attachmentsToDelete.includes(att.id))
+                                            .map((attachment) => (
+                                                <div
+                                                    key={attachment.id}
+                                                    className="flex items-center justify-between bg-background border rounded-md p-3 hover:bg-muted/50 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                        <span className="text-lg">{getFileIcon(attachment.original_filename)}</span>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-medium truncate">{attachment.original_filename}</p>
+                                                            <p className="text-xs text-muted-foreground">{formatFileSize(attachment.size)}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => downloadFile(attachment)}
+                                                            title="Download file"
+                                                            className="h-8 w-8 p-0"
+                                                        >
+                                                            <Download className="h-4 w-4" />
+                                                        </Button>
+                                                        {!isTicketClosed && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => removeAttachment(attachment.id)}
+                                                                title="Remove file"
+                                                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        {ticket.attachments.length > 0 && attachmentsToDelete.length > 0 && (
+                                            <p className="text-xs text-muted-foreground pt-2 border-t mt-2">
+                                                {attachmentsToDelete.length} attachment(s) marked for deletion
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Display new files to be uploaded */}
+                                {data.images && data.images.length > 0 && (
+                                    <div className="space-y-2 mt-3 pt-3 border-t">
+                                        <p className="text-xs font-semibold text-muted-foreground">New Files</p>
+                                        {data.images.map((file, index) => (
+                                            <div
+                                                key={`${file.name}-${index}`}
+                                                className="flex items-center justify-between bg-background border rounded-md p-3 hover:bg-muted/50 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                    <span className="text-lg">{getFileIcon(file.name)}</span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-medium truncate">{file.name}</p>
+                                                        <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => downloadFile(file)}
+                                                        title="Download file"
+                                                        className="h-8 w-8 p-0"
+                                                    >
+                                                        <Download className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => removeNewFile(index)}
+                                                        title="Remove file"
+                                                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <p className="text-xs text-muted-foreground mt-3 pt-3 border-t">
+                                    Total: {(ticket.attachments?.filter(att => !attachmentsToDelete.includes(att.id)) || []).length + (data.images?.length || 0)} file(s) • {formatFileSize(
+                                        (ticket.attachments?.filter(att => !attachmentsToDelete.includes(att.id)) || []).reduce((sum, f) => sum + f.size, 0) +
+                                        (data.images?.reduce((sum, f) => sum + f.size, 0) || 0)
+                                    )}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                                <Paperclip className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                                <p className="text-sm text-muted-foreground">No files attached yet</p>
+                                {!isTicketClosed && (
+                                    <p className="text-xs text-muted-foreground mt-1">Click "Add File" to attach images or documents</p>
+                                )}
+                            </div>
                         )}
                     </div>
                 </form>

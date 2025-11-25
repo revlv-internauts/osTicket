@@ -63,6 +63,18 @@ interface TicketAttachment {
     created_at?: string;
 }
 
+interface TicketHistory {
+    id: number;
+    ticket_id: number;
+    field_name: string;
+    old_value: string;
+    new_value: string;
+    changed_by: number;
+    changed_by_user?: User;
+    created_at: string;
+    updated_at: string;
+}
+
 interface Ticket {
     id: number;
     ticket_name: string;
@@ -94,6 +106,7 @@ interface Ticket {
     created_at: string;
     updated_at: string;
     attachments?: TicketAttachment[];
+    histories?: TicketHistory[];
 }
 
 interface TicketProps {
@@ -669,48 +682,6 @@ export default function TicketsTable({
 
                             <Separator />
 
-                            {/* Attachments */}
-                            {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
-                                <>
-                                    <div>
-                                        <p className="text-base font-medium text-muted-foreground mb-3">Attachments</p>
-                                        <div className="space-y-2">
-                                            {selectedTicket.attachments.map((attachment) => (
-                                                <div
-                                                    key={attachment.id}
-                                                    className="flex items-center justify-between bg-muted/30 border rounded-md p-3 hover:bg-muted/50 transition-colors group"
-                                                >
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setPreviewAttachment(attachment);
-                                                            setPreviewOpen(true);
-                                                        }}
-                                                        className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity text-left"
-                                                    >
-                                                        <span className="text-lg">{getFileIcon(attachment.original_filename)}</span>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-medium truncate underline">{attachment.original_filename}</p>
-                                                            <p className="text-xs text-muted-foreground">{formatFileSize(attachment.size)}</p>
-                                                        </div>
-                                                    </button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => downloadAttachment(attachment, selectedTicket.id)}
-                                                        className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    >
-                                                        <Download className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <Separator />
-                                </>
-                            )}
-
                             {/* Body with Tiptap Editor */}
                             <div>
                                 <p className="text-base font-medium text-muted-foreground mb-3">Body</p>
@@ -796,6 +767,116 @@ export default function TicketsTable({
                                         }
                                     `}</style>
                                     <EditorContent editor={editor} />
+                                </div>
+                            </div>
+
+                            {/* Attachments */}
+                            {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
+                                <>
+                                    <Separator />
+                                    <div>
+                                        <p className="text-base font-medium text-muted-foreground mb-3">Attachments</p>
+                                        <div className="space-y-2">
+                                            {selectedTicket.attachments.map((attachment) => (
+                                                <div
+                                                    key={attachment.id}
+                                                    className="flex items-center justify-between bg-muted/30 border rounded-md p-3 hover:bg-muted/50 transition-colors group"
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setPreviewAttachment(attachment);
+                                                            setPreviewOpen(true);
+                                                        }}
+                                                        className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity text-left"
+                                                    >
+                                                        <span className="text-lg">{getFileIcon(attachment.original_filename)}</span>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-medium truncate underline">{attachment.original_filename}</p>
+                                                            <p className="text-xs text-muted-foreground">{formatFileSize(attachment.size)}</p>
+                                                        </div>
+                                                    </button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => downloadAttachment(attachment, selectedTicket.id)}
+                                                        className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <Download className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            <Separator />
+
+                            {/* Timeline */}
+                            <div>
+                                <p className="text-base font-medium text-muted-foreground mb-3">Timeline</p>
+                                <div className="relative space-y-6 pl-6 before:absolute before:left-0 before:top-0 before:h-full before:w-0.5 before:bg-border">
+                                    {/* Ticket Created */}
+                                    <div className="relative">
+                                        <div className="space-y-1">
+                                            <p className="text-sm text-muted-foreground">{formatDate(selectedTicket.created_at)}</p>
+                                            <p className="font-semibold">Ticket Created</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                Ticket was created by <span className="font-semibold text-foreground">{selectedTicket.opened_by_user?.name || selectedTicket.user?.name}</span>
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Show all history events */}
+                                    {selectedTicket.histories && selectedTicket.histories.length > 0 && (
+                                        selectedTicket.histories
+                                            .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                                            .map((history: any, index: number) => (
+                                                <div key={index} className="relative">
+                                                    <div className="space-y-1">
+                                                        <p className="text-sm text-muted-foreground">{formatDate(history.created_at)}</p>
+                                                        <p className={`font-semibold ${
+                                                            history.field_name === 'status' && history.new_value === 'Closed' ? 'text-red-600' :
+                                                            history.field_name === 'status' && history.new_value === 'Open' ? 'text-green-600' :
+                                                            ''
+                                                        }`}>
+                                                            {history.field_name === 'status' && history.new_value === 'Closed' && 'Ticket Closed'}
+                                                            {history.field_name === 'status' && history.new_value === 'Open' && history.old_value === 'Closed' && 'Ticket Reopened'}
+                                                            {history.field_name === 'status' && history.new_value === 'Open' && history.old_value !== 'Closed' && 'Ticket Opened'}
+                                                            {history.field_name === 'priority' && `Priority Changed to ${history.new_value}`}
+                                                            {history.field_name === 'assigned_to' && 'Ticket Reassigned'}
+                                                            {history.field_name === 'body' && 'Ticket Body Updated'}
+                                                            {history.field_name !== 'status' && history.field_name !== 'priority' && history.field_name !== 'assigned_to' && history.field_name !== 'body' && `${history.field_name} Updated`}
+                                                        </p>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {history.field_name === 'status' && history.new_value === 'Closed' && (
+                                                                <>Changed by <span className="font-semibold text-foreground">{history.changed_by_user?.name || 'System'}</span></>
+                                                            )}
+                                                            {history.field_name === 'status' && history.new_value === 'Open' && history.old_value === 'Closed' && (
+                                                                <>Reopened by <span className="font-semibold text-foreground">{history.changed_by_user?.name || 'System'}</span></>
+                                                            )}
+                                                            {history.field_name === 'status' && history.new_value === 'Open' && history.old_value !== 'Closed' && (
+                                                                <>Opened by <span className="font-semibold text-foreground">{history.changed_by_user?.name || 'System'}</span></>
+                                                            )}
+                                                            {history.field_name === 'priority' && (
+                                                                <>Changed by <span className="font-semibold text-foreground">{history.changed_by_user?.name || 'System'}</span> from {history.old_value} to {history.new_value}</>
+                                                            )}
+                                                            {history.field_name === 'assigned_to' && (
+                                                                <>Changed by <span className="font-semibold text-foreground">{history.changed_by_user?.name || 'System'}</span> from {history.old_value} to {history.new_value}</>
+                                                            )}
+                                                            {history.field_name === 'body' && (
+                                                                <>Updated by <span className="font-semibold text-foreground">{history.changed_by_user?.name || 'System'}</span></>
+                                                            )}
+                                                            {history.field_name !== 'status' && history.field_name !== 'priority' && history.field_name !== 'assigned_to' && history.field_name !== 'body' && (
+                                                                <>Changed by <span className="font-semibold text-foreground">{history.changed_by_user?.name || 'System'}</span></>
+                                                            )}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))
+                                    )}
                                 </div>
                             </div>
                         </div>

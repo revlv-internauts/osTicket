@@ -220,18 +220,18 @@ class TicketTest extends TestCase
     public function test_can_delete_ticket(): void
     {        
         [$user, , $helpTopic, $assignedUser] = $this->bootstrapTicket();
+        
         $ticket = Ticket::factory()->create([
             'user_id' => $user->id,
             'help_topic' => $helpTopic->id,
             'assigned_to' => $assignedUser->id,
+            'status' => 'Open',
         ]);
-        
-        $ticketId = $ticket->id;
-        
+
         $response = $this->actingAs($user)->delete(route('tickets.destroy', $ticket));
         
         $response->assertRedirect();
-        $this->assertDatabaseMissing('tickets', ['id' => $ticketId]);
+        $this->assertDatabaseMissing('tickets', ['id' => $ticket->id]);
     }
 
     public function test_can_create_ticket_with_attachments(): void
@@ -293,5 +293,25 @@ class TicketTest extends TestCase
         
         $attachment = $ticket->attachments->first();
         $this->assertEquals('document.pdf', $attachment->original_filename);
+    }
+
+    public function test_unauthorized_user_cannot_update_ticket(): void
+    {
+        [$user, , $helpTopic, $assignedUser] = $this->bootstrapTicket();
+        $unauthorizedUser = User::factory()->create();
+        
+        $ticket = Ticket::factory()->create([
+            'user_id' => $user->id,
+            'help_topic' => $helpTopic->id,
+            'assigned_to' => $assignedUser->id,
+            'status' => 'Open',
+        ]);
+        
+        $response = $this->actingAs($unauthorizedUser)->put(route('tickets.update', $ticket), [
+            'body' => 'Unauthorized update',
+            'priority' => 'High',
+        ]);
+        
+        $response->assertStatus(403);
     }
 }

@@ -29,10 +29,20 @@ class TicketController extends Controller
             'recipientEmails',
             'openedByUser',
             'closedByUser',
-            'attachments'
+            'attachments',
+            'histories.changedBy'
         ])
         ->orderBy('created_at', 'desc')
-        ->get();
+        ->get()
+        ->map(function ($ticket) {
+            if ($ticket->histories) {
+                $ticket->histories = $ticket->histories->map(function ($history) {
+                    $history->changed_by_user = $history->changedBy;
+                    return $history;
+                });
+            }
+            return $ticket;
+        });
        
         $myTickets = Ticket::with([
             'user', 
@@ -42,11 +52,21 @@ class TicketController extends Controller
             'recipientEmails',
             'openedByUser',
             'closedByUser',
-            'attachments'
+            'attachments',
+            'histories.changedBy'
         ])
         ->where('user_id', Auth::id())
         ->orderBy('created_at', 'desc')
-        ->get();
+        ->get()
+        ->map(function ($ticket) {
+            if ($ticket->histories) {
+                $ticket->histories = $ticket->histories->map(function ($history) {
+                    $history->changed_by_user = $history->changedBy;
+                    return $history;
+                });
+            }
+            return $ticket;
+        });
         
         $users = User::select('id', 'name')->get();
         $emails = Email::select('id', 'email_address', 'name')->get();
@@ -266,8 +286,8 @@ class TicketController extends Controller
      */
     private function canEditTicket(Ticket $ticket)
     {
-        $userId = Auth::id();
-        return $userId === $ticket->opened_by || $userId === $ticket->assigned_to;
+        $user = Auth::user();
+        return $user->id === $ticket->user_id || $user->id === $ticket->assigned_to;
     }
 
     /**
@@ -304,30 +324,30 @@ class TicketController extends Controller
      */
     public function update(Request $request, Ticket $ticket)
     {
+        // Check authorization first
         if (!$this->canEditTicket($ticket)) {
-            return back()->withErrors(['authorization' => 'You do not have permission to update this ticket. Only the user who opened it or the assigned user can update.']);
+            abort(403, 'You are not authorized to update this ticket.');
         }
 
         $validated = $request->validate([
-            'body' => 'nullable|string',
-            'status' => 'nullable|string|in:Open,Closed',
-            'assigned_to' => 'nullable|exists:users,id',
-            'priority' => 'nullable|string|in:Low,Medium,High',
-            'images' => 'nullable|array',
-            'images.*' => 'nullable|file|mimes:jpeg,jpg,png,gif,pdf,doc,docx|max:8192',
-        ], [
-            'images.*.mimes' => 'Each file must be a valid image (jpeg, jpg, png, gif) or document (pdf, doc, docx).',
-            'images.*.max' => 'Each file must not exceed 8MB in size.',
+            'body' => 'sometimes|required|string',
+            'priority' => 'sometimes|required|string',
+            'assigned_to' => 'sometimes|required|exists:users,id',
+            'status' => 'sometimes|required|string',
+            'images' => 'sometimes|array',
+            'images.*' => 'file|mimes:jpeg,jpg,png,gif,pdf,doc,docx|max:8192',
+            'attachments_to_delete' => 'sometimes|array',
+            'attachments_to_delete.*' => 'exists:ticket_attachments,id',
         ]);
 
-        // Additional validation for total file size
+ 
         if ($request->hasFile('images')) {
             $totalSize = 0;
             foreach ($request->file('images') as $file) {
                 $totalSize += $file->getSize();
             }
             
-            $maxTotalSize = 8 * 1024 * 1024; // 8MB
+            $maxTotalSize = 8 * 1024 * 1024; 
             if ($totalSize > $maxTotalSize) {
                 return back()->withErrors(['images' => 'Total file size must not exceed 8MB.'])->withInput();
             }
@@ -337,7 +357,7 @@ class TicketController extends Controller
         $changes = [];
 
         if (isset($validated['assigned_to']) && $validated['assigned_to'] != $ticket->assigned_to) {
-            // Log the change to history
+
             TicketHistory::create([
                 'ticket_id' => $ticket->id,
                 'field_name' => 'assigned_to',
@@ -352,7 +372,7 @@ class TicketController extends Controller
         }
 
         if (isset($validated['priority']) && $validated['priority'] != $ticket->priority) {
-            // Log the change to history
+
             TicketHistory::create([
                 'ticket_id' => $ticket->id,
                 'field_name' => 'priority',
@@ -365,7 +385,15 @@ class TicketController extends Controller
             $changes['Priority'] = $validated['priority'];
         }
 
-        if (isset($validated['body'])) {
+        if (isset($validated['body']) && $validated['body'] != $ticket->body) {
+            TicketHistory::create([
+                'ticket_id' => $ticket->id,
+                'field_name' => 'body',
+                'old_value' => 'Previous content',
+                'new_value' => 'Updated content',
+                'changed_by' => Auth::id(),
+            ]);
+
             $processedResponse = $validated['body'];
             $imagePaths = json_decode($ticket->image_paths ?? '[]', true);
             
@@ -392,7 +420,15 @@ class TicketController extends Controller
         }
 
         $wasClosing = false;
-        if (isset($validated['status'])) {
+        if (isset($validated['status']) && $validated['status'] != $ticket->status) {
+            TicketHistory::create([
+                'ticket_id' => $ticket->id,
+                'field_name' => 'status',
+                'old_value' => $ticket->status,
+                'new_value' => $validated['status'],
+                'changed_by' => Auth::id(),
+            ]);
+
             $updateData['status'] = $validated['status'];
             
             if ($validated['status'] === 'Closed' && $ticket->status !== 'Closed') {
