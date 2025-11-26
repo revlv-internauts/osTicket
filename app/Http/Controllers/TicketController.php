@@ -153,7 +153,6 @@ class TicketController extends Controller
             return back()->withErrors(['user_id' => 'You cannot create tickets for other users.']);
         }
 
-        // Additional validation for total file size
         if ($request->hasFile('images')) {
             $totalSize = 0;
             foreach ($request->file('images') as $file) {
@@ -174,28 +173,6 @@ class TicketController extends Controller
 
         $validated['ticket_name'] = $ticketName;
         $validated['opened_by'] = Auth::id();
-        
-        $processedResponse = $validated['body'];
-        
-        if (!empty($processedResponse)) {
-            preg_match_all('/<img[^>]+src="data:image\/([^;]+);base64,([^"]+)"[^>]*>/i', $processedResponse, $matches);
-            
-            foreach ($matches[0] as $index => $fullMatch) {
-                $imageType = $matches[1][$index];
-                $base64Data = $matches[2][$index];
-                
-                $imageData = base64_decode($base64Data);
-                $fileName = 'ticket-' . uniqid() . '.' . $imageType;
-                $path = 'ticket-images/' . $fileName;
-                
-                Storage::disk('public')->put($path, $imageData);
-
-                $url = asset('storage/' . $path);
-                $processedResponse = str_replace($fullMatch, '<img src="' . $url . '" alt="Ticket Image" />', $processedResponse);
-            }
-        }
-        
-        $validated['body'] = $processedResponse;
         
         $ccEmails = $validated['cc'] ?? [];
         $recipientEmails = $validated['recipient'] ?? [];
@@ -394,28 +371,7 @@ class TicketController extends Controller
                 'changed_by' => Auth::id(),
             ]);
 
-            $processedResponse = $validated['body'];
-            $imagePaths = json_decode($ticket->image_paths ?? '[]', true);
-            
-            preg_match_all('/<img[^>]+src="data:image\/([^;]+);base64,([^"]+)"[^>]*>/i', $processedResponse, $matches);
-            
-            foreach ($matches[0] as $index => $fullMatch) {
-                $imageType = $matches[1][$index];
-                $base64Data = $matches[2][$index];
-                
-                $imageData = base64_decode($base64Data);
-                $fileName = 'ticket-' . uniqid() . '.' . $imageType;
-                $path = 'ticket-images/' . $fileName;
-                
-                Storage::disk('public')->put($path, $imageData);
-                $imagePaths[] = $path;
-                
-                $url = asset('storage/' . $path);
-                $processedResponse = str_replace($fullMatch, '<img src="' . $url . '" alt="Ticket Image" />', $processedResponse);
-            }
-            
-            $updateData['body'] = $processedResponse;
-            $updateData['image_paths'] = !empty($imagePaths) ? json_encode($imagePaths) : null;
+            $updateData['body'] = $validated['body'];
             $changes['Body'] = 'Updated';
         }
 

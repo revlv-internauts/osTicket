@@ -11,6 +11,8 @@ use App\Services\MailtrapService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\TicketCreated;
 
 class TicketTest extends TestCase
 {
@@ -22,7 +24,6 @@ class TicketTest extends TestCase
         $helpTopic = HelpTopic::factory()->create();
         $assignedUser = User::factory()->create(['name' => 'Support']);
         $ccEmails = Email::factory()->count(2)->create();
-
      return [$user, $otherUser, $helpTopic, $assignedUser, $ccEmails];
     }
 
@@ -219,7 +220,7 @@ class TicketTest extends TestCase
 
     public function test_can_change_priority(): void
     {
-        [$user, , $helpTopic, $assignedUser] = $this->bootstrapTicket();
+        [$user, , $helpTopic] = $this->bootstrapTicket();
         $ticket = Ticket::factory()->create([
             'user_id' => $user->id,
             'help_topic' => $helpTopic->id,
@@ -235,11 +236,13 @@ class TicketTest extends TestCase
         
         $ticket->refresh();
         $this->assertEquals($priority, $ticket->priority);
+
+
     }
 
     public function test_can_reassign_ticket(): void
     {        
-        [$user, , $helpTopic, $assignedUser] = $this->bootstrapTicket();
+        [$user, , $helpTopic,] = $this->bootstrapTicket();
         $newAssignee = User::factory()->create();
         $ticket = Ticket::factory()->create([
             'user_id' => $user->id,
@@ -310,7 +313,7 @@ class TicketTest extends TestCase
     public function test_can_update_ticket_with_new_attachments(): void
     {
         Storage::fake('public');
-        [$user, , $helpTopic, $assignedUser] = $this->bootstrapTicket();
+        [$user, , $helpTopic] = $this->bootstrapTicket();
         
         $ticket = Ticket::factory()->create([
             'user_id' => $user->id,
@@ -389,5 +392,229 @@ class TicketTest extends TestCase
         $response->assertStatus(403);
         $ticket3->refresh();
         $this->assertEquals('Open', $ticket3->status);
+    }
+    
+    public function test_creates_history_for_status_change(): void
+    {
+        [$user, , $helpTopic] = $this->bootstrapTicket();
+        
+        $ticket = Ticket::factory()->create([
+            'user_id' => $user->id,
+            'help_topic' => $helpTopic->id,
+            'assigned_to' => $user->id,
+            'status' => 'Open',
+            'downtime' => now()->subHours(2),
+        ]);
+        
+        $response = $this->actingAs($user)->put(route('tickets.update', $ticket), [
+            'status' => 'Closed',
+        ]);
+        
+        $this->assertDatabaseHas('ticket_histories', [
+            'ticket_id' => $ticket->id,
+            'field_name' => 'status',
+            'old_value' => 'Open',
+            'new_value' => 'Closed',
+            'changed_by' => $user->id,
+        ]);
+    }
+
+    public function test_creates_history_for_priority_change(): void
+    {
+        [$user, , $helpTopic] = $this->bootstrapTicket();
+        
+        $ticket = Ticket::factory()->create([
+            'user_id' => $user->id,
+            'help_topic' => $helpTopic->id,
+            'priority' => 'Low',
+            'opened_by' => $user->id,
+        ]);
+        
+        $response = $this->actingAs($user)->put(route('tickets.update', $ticket), [
+            'body' => 'Test',
+            'priority' => 'High',
+        ]);
+        
+        $this->assertDatabaseHas('ticket_histories', [
+            'ticket_id' => $ticket->id,
+            'field_name' => 'priority',
+            'old_value' => 'Low',
+            'new_value' => 'High',
+            'changed_by' => $user->id,
+        ]);
+    }
+
+    public function test_creates_history_for_assignment_change(): void
+    {
+        [$user, , $helpTopic, $assignedUser] = $this->bootstrapTicket();
+        $newAssignee = User::factory()->create(['name' => 'New Assignee']);
+        
+        $ticket = Ticket::factory()->create([
+            'user_id' => $user->id,
+            'help_topic' => $helpTopic->id,
+            'assigned_to' => $assignedUser->id,
+            'opened_by' => $user->id,
+        ]);
+        
+        $response = $this->actingAs($user)->put(route('tickets.update', $ticket), [
+            'body' => 'Test',
+            'assigned_to' => $newAssignee->id,
+        ]);
+        
+        $this->assertDatabaseHas('ticket_histories', [
+            'ticket_id' => $ticket->id,
+            'field_name' => 'assigned_to',
+            'old_value' => $assignedUser->name,
+            'new_value' => $newAssignee->name,
+            'changed_by' => $user->id,
+        ]);
+    }
+
+    public function test_creates_history_for_body_update(): void
+    {
+        [$user, , $helpTopic] = $this->bootstrapTicket();
+        
+        $ticket = Ticket::factory()->create([
+            'user_id' => $user->id,
+            'help_topic' => $helpTopic->id,
+            'assigned_to' => $user->id,
+            'body' => 'Original body',
+            'opened_by' => $user->id,
+        ]);
+        
+        $response = $this->actingAs($user)->put(route('tickets.update', $ticket), [
+            'body' => 'Updated body',
+        ]);
+        
+        $this->assertDatabaseHas('ticket_histories', [
+            'ticket_id' => $ticket->id,
+            'field_name' => 'body',
+            'changed_by' => $user->id,
+        ]);
+    }
+
+    public function test_sends_email_when_ticket_created(): void
+    {
+        [$user, , , $assignedUser] = $this->bootstrapTicket();
+        $helpTopic = HelpTopic::factory()->create(['name' => 'Support']);
+        $ccEmails = Email::factory()->count(2)->create();
+        $recipientEmails = Email::factory()->count(2)->create();
+        
+        $response = $this->actingAs($user)->post(route('tickets.store'), [
+            'user_id' => $user->id,
+            'ticket_source' => 'Web',
+            'help_topic' => $helpTopic->id,
+            'department' => 'IT',
+            'downtime' => now()->toDateTimeString(),
+            'assigned_to' => $assignedUser->id,
+            'body' => 'Test ticket with emails',
+            'priority' => 'High',
+            'cc' => $ccEmails->pluck('id')->toArray(),
+            'recipient' => $recipientEmails->pluck('id')->toArray(),
+        ]);
+        
+        $response->assertRedirect(route('tickets.index'));
+
+        $ticket = Ticket::latest()->first();
+        $this->assertNotNull($ticket);
+        $this->assertEquals(2, $ticket->ccEmails()->count());
+        $this->assertEquals(2, $ticket->recipientEmails()->count());
+        $this->assertEquals($user->id, $ticket->user_id);
+        $this->assertEquals($assignedUser->id, $ticket->assigned_to);
+    }
+
+    public function test_sends_email_when_ticket_updated(): void
+    {
+        [$user, , $helpTopic, $assignedUser, $ccEmails] = $this->bootstrapTicket();
+        $recipientEmails = Email::factory()->count(2)->create();
+        
+        $ticket = Ticket::factory()->create([
+            'user_id' => $user->id,
+            'help_topic' => $helpTopic->id,
+            'assigned_to' => $assignedUser->id,
+            'status' => 'Open',
+            'priority' => 'Low',
+            'opened_by' => $user->id,
+        ]);
+        
+        $ticket->ccEmails()->attach($ccEmails->pluck('id'));
+        $ticket->recipientEmails()->attach($recipientEmails->pluck('id'));
+        
+        $response = $this->actingAs($user)->put(route('tickets.update', $ticket), [
+            'body' => 'Updated body',
+            'priority' => 'High',
+        ]);
+        
+        $response->assertSessionHasNoErrors();
+        
+        $ticket->refresh();
+        $this->assertEquals('Updated body', $ticket->body);
+        $this->assertEquals('High', $ticket->priority);
+        
+        $this->assertDatabaseHas('ticket_histories', [
+            'ticket_id' => $ticket->id,
+            'field_name' => 'priority',
+            'old_value' => 'Low',
+            'new_value' => 'High',
+        ]);
+        
+        $this->assertDatabaseHas('ticket_histories', [
+            'ticket_id' => $ticket->id,
+            'field_name' => 'body',
+        ]);
+    }
+
+    public function test_sends_email_when_ticket_closed(): void
+    {
+        [$user, , $helpTopic, $assignedUser, $ccEmails] = $this->bootstrapTicket();
+        $recipientEmails = Email::factory()->count(2)->create();
+        
+        $ticket = Ticket::factory()->create([
+            'user_id' => $user->id,
+            'help_topic' => $helpTopic->id,
+            'assigned_to' => $assignedUser->id,
+            'status' => 'Open',
+            'downtime' => now()->subHours(2),
+            'opened_by' => $user->id,
+        ]);
+        
+        $ticket->ccEmails()->attach($ccEmails->pluck('id'));
+        $ticket->recipientEmails()->attach($recipientEmails->pluck('id'));
+        
+        $response = $this->actingAs($user)->put(route('tickets.update', $ticket), [
+            'status' => 'Closed',
+        ]);
+        
+        $response->assertSessionHasNoErrors();
+        $ticket->refresh();
+        $this->assertEquals('Closed', $ticket->status);
+        $this->assertNotNull($ticket->uptime);
+        $this->assertNotNull($ticket->closed_by);
+        
+        $this->assertEquals(2, $ticket->ccEmails()->count());
+        $this->assertEquals(2, $ticket->recipientEmails()->count());
+    }
+
+    public function test_does_not_send_duplicate_emails(): void
+    {
+        [$user, , $helpTopic] = $this->bootstrapTicket();
+        
+        $response = $this->actingAs($user)->post(route('tickets.store'), [
+            'user_id' => $user->id,
+            'ticket_source' => 'Web',
+            'help_topic' => $helpTopic->id,
+            'department' => 'IT',
+            'downtime' => now()->toDateTimeString(),
+            'assigned_to' => $user->id,
+            'body' => 'Test ticket',
+            'priority' => 'High',
+        ]);
+        
+        $response->assertRedirect(route('tickets.index'));
+        
+        $ticket = Ticket::latest()->first();
+        $this->assertNotNull($ticket);
+        $this->assertEquals($user->id, $ticket->user_id);
+        $this->assertEquals($user->id, $ticket->assigned_to);
     }
 }

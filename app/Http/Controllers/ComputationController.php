@@ -57,7 +57,8 @@ class ComputationController extends Controller
 
         $openedAt = $ticket->downtime
             ? Carbon::parse($ticket->downtime)
-            : Carbon::parse($ticket->created_at);        if ($closedAt->lessThan($openedAt)) {
+            : Carbon::parse($ticket->created_at);        
+            if ($closedAt->lessThan($openedAt)) {
             $openedAt = Carbon::parse($ticket->created_at);
         }
 
