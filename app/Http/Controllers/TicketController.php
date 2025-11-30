@@ -366,7 +366,7 @@ class TicketController extends Controller
             TicketHistory::create([
                 'ticket_id' => $ticket->id,
                 'field_name' => 'body',
-                'old_value' => 'Previous content',
+                'old_value' => 'Body',
                 'new_value' => 'Updated content',
                 'changed_by' => Auth::id(),
             ]);
