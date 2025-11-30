@@ -11,6 +11,7 @@ use App\Services\MailtrapService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Carbon\Carbon;
 
@@ -111,6 +112,7 @@ class TicketController extends Controller
         $lastTicket = Ticket::where('help_topic', $helpTopicId)
             ->where('ticket_name', 'LIKE', $helpTopic->name . '-%')
             ->orderBy('id', 'desc')
+            ->lockForUpdate()
             ->first();
 
         if ($lastTicket) {
@@ -165,77 +167,95 @@ class TicketController extends Controller
             }
         }
 
-        $ticketName = $this->generateTicketName($validated['help_topic']);
-        
-        if (!$ticketName) {
-            return back()->withErrors(['help_topic' => 'Invalid help topic selected.']);
-        }
-
-        $validated['ticket_name'] = $ticketName;
-        $validated['opened_by'] = Auth::id();
-        
-        $ccEmails = $validated['cc'] ?? [];
-        $recipientEmails = $validated['recipient'] ?? [];
-        unset($validated['cc']);
-        unset($validated['recipient']);
-        unset($validated['images']);
-        
-        $ticket = Ticket::create($validated);
-        
-        // Store file attachments in separate table
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $file) {
-                $fileName = time() . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('ticket-attachments', $fileName, 'public');
-                
-                $ticket->attachments()->create([
-                    'original_filename' => $file->getClientOriginalName(),
-                    'filename' => $fileName,
-                    'path' => $path,
-                    'mime_type' => $file->getMimeType(),
-                    'size' => $file->getSize(),
-                ]);
-            }
-        }
-
-        if (!empty($ccEmails)) {
-            $ticket->ccEmails()->attach($ccEmails);
-        }
-
-        if (!empty($recipientEmails)) {
-            $ticket->recipientEmails()->attach($recipientEmails);
-        }
-
-        $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails', 'recipientEmails', 'attachments']);
-
         try {
-            $mailtrapService = new MailtrapService();
+            DB::beginTransaction();
+
+            $ticketName = $this->generateTicketName($validated['help_topic']);
             
-            if ($ticket->user && $ticket->user->email) {
-                $mailtrapService->sendTicketCreated($ticket, $ticket->user->email);
+            if (!$ticketName) {
+                DB::rollBack();
+                return back()->withErrors(['help_topic' => 'Invalid help topic selected.'])->withInput();
             }
 
-            if ($ticket->recipientEmails && $ticket->recipientEmails->count() > 0) {
-                foreach ($ticket->recipientEmails as $recipientEmail) {
-                    $mailtrapService->sendTicketCreated($ticket, $recipientEmail->email_address);
+            $validated['ticket_name'] = $ticketName;
+            $validated['opened_by'] = Auth::id();
+            
+            $ccEmails = $validated['cc'] ?? [];
+            $recipientEmails = $validated['recipient'] ?? [];
+            unset($validated['cc']);
+            unset($validated['recipient']);
+            unset($validated['images']);
+            
+            $ticket = Ticket::create($validated);
+            
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $file) {
+                    $fileName = time() . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    $path = $file->storeAs('ticket-attachments', $fileName, 'public');
+                    
+                    $ticket->attachments()->create([
+                        'original_filename' => $file->getClientOriginalName(),
+                        'filename' => $fileName,
+                        'path' => $path,
+                        'mime_type' => $file->getMimeType(),
+                        'size' => $file->getSize(),
+                    ]);
                 }
             }
 
-            if ($ticket->assigned_to && $ticket->assignedToUser && $ticket->assignedToUser->email) {
-                $mailtrapService->sendTicketCreated($ticket, $ticket->assignedToUser->email);
+            if (!empty($ccEmails)) {
+                $ticket->ccEmails()->attach($ccEmails);
             }
 
-            if ($ticket->ccEmails && $ticket->ccEmails->count() > 0) {
-                foreach ($ticket->ccEmails as $ccEmail) {
-                    $mailtrapService->sendTicketCreated($ticket, $ccEmail->email_address);
-                }
+            if (!empty($recipientEmails)) {
+                $ticket->recipientEmails()->attach($recipientEmails);
             }
+
+            DB::commit();
+
+            $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails', 'recipientEmails', 'attachments']);
+
+            // Send emails after successful commit
+            try {
+                $mailtrapService = new MailtrapService();
+
+                $uniqueEmails = collect();
+
+                if ($ticket->user && $ticket->user->email) {
+                    $uniqueEmails->push($ticket->user->email);
+                }
+
+                if ($ticket->assigned_to && $ticket->assignedToUser && $ticket->assignedToUser->email) {
+                    $uniqueEmails->push($ticket->assignedToUser->email);
+                }
+
+                if ($ticket->recipientEmails && $ticket->recipientEmails->count() > 0) {
+                    foreach ($ticket->recipientEmails as $recipientEmail) {
+                        $uniqueEmails->push($recipientEmail->email_address);
+                    }
+                }
+                
+                if ($ticket->ccEmails && $ticket->ccEmails->count() > 0) {
+                    foreach ($ticket->ccEmails as $ccEmail) {
+                        $uniqueEmails->push($ccEmail->email_address);
+                    }
+                }
+                
+                $uniqueEmails->unique()->each(function ($email) use ($mailtrapService, $ticket) {
+                    $mailtrapService->sendTicketCreated($ticket, $email);
+                });
+            } catch (\Exception $e) {
+                \Log::error('Failed to send ticket creation email: ' . $e->getMessage());
+            }
+
+            return redirect()->route('tickets.index')
+                ->with('success', 'Ticket created successfully with ID: ' . $ticketName);
+
         } catch (\Exception $e) {
-            \Log::error('Failed to send ticket creation email: ' . $e->getMessage());
+            DB::rollBack();
+            \Log::error('Failed to create ticket: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Failed to create ticket: ' . $e->getMessage()])->withInput();
         }
-
-        return redirect()->route('tickets.index')
-            ->with('success', 'Ticket created successfully with ID: ' . $ticketName);
     }
 
     /**
@@ -317,7 +337,6 @@ class TicketController extends Controller
             'attachments_to_delete.*' => 'exists:ticket_attachments,id',
         ]);
 
- 
         if ($request->hasFile('images')) {
             $totalSize = 0;
             foreach ($request->file('images') as $file) {
@@ -330,154 +349,164 @@ class TicketController extends Controller
             }
         }
 
-        $updateData = [];
-        $changes = [];
+        try {
+            DB::beginTransaction();
 
-        if (isset($validated['assigned_to']) && $validated['assigned_to'] != $ticket->assigned_to) {
+            $updateData = [];
+            $changes = [];
+            $wasClosing = false;
 
-            TicketHistory::create([
-                'ticket_id' => $ticket->id,
-                'field_name' => 'assigned_to',
-                'old_value' => $ticket->assigned_to ? User::find($ticket->assigned_to)?->name : 'Unassigned',
-                'new_value' => $validated['assigned_to'] ? User::find($validated['assigned_to'])?->name : 'Unassigned',
-                'changed_by' => Auth::id(),
-            ]);
-            
-            $updateData['assigned_to'] = $validated['assigned_to'];
-            $assignedUser = User::find($validated['assigned_to']);
-            $changes['Assigned To'] = $assignedUser ? $assignedUser->name : 'Unassigned';
-        }
-
-        if (isset($validated['priority']) && $validated['priority'] != $ticket->priority) {
-
-            TicketHistory::create([
-                'ticket_id' => $ticket->id,
-                'field_name' => 'priority',
-                'old_value' => $ticket->priority,
-                'new_value' => $validated['priority'],
-                'changed_by' => Auth::id(),
-            ]);
-            
-            $updateData['priority'] = $validated['priority'];
-            $changes['Priority'] = $validated['priority'];
-        }
-
-        if (isset($validated['body']) && $validated['body'] != $ticket->body) {
-            TicketHistory::create([
-                'ticket_id' => $ticket->id,
-                'field_name' => 'body',
-                'old_value' => 'Body',
-                'new_value' => 'Updated content',
-                'changed_by' => Auth::id(),
-            ]);
-
-            $updateData['body'] = $validated['body'];
-            $changes['Body'] = 'Updated';
-        }
-
-        $wasClosing = false;
-        if (isset($validated['status']) && $validated['status'] != $ticket->status) {
-            TicketHistory::create([
-                'ticket_id' => $ticket->id,
-                'field_name' => 'status',
-                'old_value' => $ticket->status,
-                'new_value' => $validated['status'],
-                'changed_by' => Auth::id(),
-            ]);
-
-            $updateData['status'] = $validated['status'];
-            
-            if ($validated['status'] === 'Closed' && $ticket->status !== 'Closed') {
-                $updateData['uptime'] = Carbon::now();
-                $updateData['closed_by'] = Auth::id();
-                $changes['Status'] = 'Closed';
-                $wasClosing = true;
-
-                $closedAt = Carbon::now();
-                $openedAt = $ticket->downtime 
-                    ? Carbon::parse($ticket->downtime) 
-                    : Carbon::parse($ticket->created_at);
-
-                if ($closedAt->lessThan($openedAt)) {
-                    $openedAt = Carbon::parse($ticket->created_at);
-                }
-                
-                $updateData['resolution_time'] = (int) round($openedAt->diffInMinutes($closedAt));
-            }
-
-            if ($validated['status'] === 'Open' && $ticket->status === 'Closed') {
-                $updateData['uptime'] = null;
-                $updateData['closed_by'] = null;
-                $updateData['resolution_time'] = null;
-                $changes['Status'] = 'Reopened';
-            }
-        }
-
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $file) {
-                $fileName = time() . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('ticket-attachments', $fileName, 'public');
-                
-                $ticket->attachments()->create([
-                    'original_filename' => $file->getClientOriginalName(),
-                    'filename' => $fileName,
-                    'path' => $path,
-                    'mime_type' => $file->getMimeType(),
-                    'size' => $file->getSize(),
+            if (isset($validated['assigned_to']) && $validated['assigned_to'] != $ticket->assigned_to) {
+                TicketHistory::create([
+                    'ticket_id' => $ticket->id,
+                    'field_name' => 'assigned_to',
+                    'old_value' => $ticket->assigned_to ? User::find($ticket->assigned_to)?->name : 'Unassigned',
+                    'new_value' => $validated['assigned_to'] ? User::find($validated['assigned_to'])?->name : 'Unassigned',
+                    'changed_by' => Auth::id(),
                 ]);
-            }
-            $changes['Attachments'] = 'Added new files';
-        }
-
-        if (!empty($updateData)) {
-            $ticket->update($updateData);
-            $ticket->refresh();
-            $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails', 'recipientEmails', 'attachments', 'closedByUser']);
-
-            try {
-                $mailtrapService = new MailtrapService();
                 
-                if ($wasClosing) {
-                    if ($ticket->user && $ticket->user->email) {
-                        $mailtrapService->sendTicketClosed($ticket, $ticket->user->email);
-                    }
-                    if ($ticket->recipientEmails && $ticket->recipientEmails->count() > 0) {
-                        foreach ($ticket->recipientEmails as $recipientEmail) {
-                            $mailtrapService->sendTicketClosed($ticket, $recipientEmail->email_address);
-                        }
-                    }
-                    if ($ticket->assigned_to && $ticket->assignedToUser && $ticket->assignedToUser->email) {
-                        $mailtrapService->sendTicketClosed($ticket, $ticket->assignedToUser->email);
-                    }
-                    if ($ticket->ccEmails && $ticket->ccEmails->count() > 0) {
-                        foreach ($ticket->ccEmails as $ccEmail) {
-                            $mailtrapService->sendTicketClosed($ticket, $ccEmail->email_address);
-                        }
-                    }
-                } else {
-                    if ($ticket->user && $ticket->user->email) {
-                        $mailtrapService->sendTicketUpdated($ticket, $ticket->user->email, $changes);
-                    }
-                    if ($ticket->recipientEmails && $ticket->recipientEmails->count() > 0) {
-                        foreach ($ticket->recipientEmails as $recipientEmail) {
-                            $mailtrapService->sendTicketUpdated($ticket, $recipientEmail->email_address, $changes);
-                        }
-                    }
-                    if ($ticket->assigned_to && $ticket->assignedToUser && $ticket->assignedToUser->email) {
-                        $mailtrapService->sendTicketUpdated($ticket, $ticket->assignedToUser->email, $changes);
-                    }
-                    if ($ticket->ccEmails && $ticket->ccEmails->count() > 0) {
-                        foreach ($ticket->ccEmails as $ccEmail) {
-                            $mailtrapService->sendTicketUpdated($ticket, $ccEmail->email_address, $changes);
-                        }
-                    }
-                }
-            } catch (\Exception $e) {
-                \Log::error('Failed to send ticket update email: ' . $e->getMessage());
+                $updateData['assigned_to'] = $validated['assigned_to'];
+                $assignedUser = User::find($validated['assigned_to']);
+                $changes['Assigned To'] = $assignedUser ? $assignedUser->name : 'Unassigned';
             }
-        }
 
-        return back()->with('success', 'Ticket updated successfully.');
+            if (isset($validated['priority']) && $validated['priority'] != $ticket->priority) {
+                TicketHistory::create([
+                    'ticket_id' => $ticket->id,
+                    'field_name' => 'priority',
+                    'old_value' => $ticket->priority,
+                    'new_value' => $validated['priority'],
+                    'changed_by' => Auth::id(),
+                ]);
+                
+                $updateData['priority'] = $validated['priority'];
+                $changes['Priority'] = $validated['priority'];
+            }
+
+            if (isset($validated['body']) && $validated['body'] != $ticket->body) {
+                TicketHistory::create([
+                    'ticket_id' => $ticket->id,
+                    'field_name' => 'body',
+                    'old_value' => 'Body',
+                    'new_value' => 'Updated content',
+                    'changed_by' => Auth::id(),
+                ]);
+
+                $updateData['body'] = $validated['body'];
+                $changes['Body'] = 'Updated';
+            }
+
+            if (isset($validated['status']) && $validated['status'] != $ticket->status) {
+                TicketHistory::create([
+                    'ticket_id' => $ticket->id,
+                    'field_name' => 'status',
+                    'old_value' => $ticket->status,
+                    'new_value' => $validated['status'],
+                    'changed_by' => Auth::id(),
+                ]);
+
+                $updateData['status'] = $validated['status'];
+                
+                if ($validated['status'] === 'Closed' && $ticket->status !== 'Closed') {
+                    $updateData['uptime'] = Carbon::now();
+                    $updateData['closed_by'] = Auth::id();
+                    $changes['Status'] = 'Closed';
+                    $wasClosing = true;
+
+                    $closedAt = Carbon::now();
+                    $openedAt = $ticket->downtime 
+                        ? Carbon::parse($ticket->downtime) 
+                        : Carbon::parse($ticket->created_at);
+
+                    if ($closedAt->lessThan($openedAt)) {
+                        $openedAt = Carbon::parse($ticket->created_at);
+                    }
+                    
+                    $updateData['resolution_time'] = (int) round($openedAt->diffInMinutes($closedAt));
+                }
+
+                if ($validated['status'] === 'Open' && $ticket->status === 'Closed') {
+                    $updateData['uptime'] = null;
+                    $updateData['closed_by'] = null;
+                    $updateData['resolution_time'] = null;
+                    $changes['Status'] = 'Reopened';
+                }
+            }
+
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $file) {
+                    $fileName = time() . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    $path = $file->storeAs('ticket-attachments', $fileName, 'public');
+                    
+                    $ticket->attachments()->create([
+                        'original_filename' => $file->getClientOriginalName(),
+                        'filename' => $fileName,
+                        'path' => $path,
+                        'mime_type' => $file->getMimeType(),
+                        'size' => $file->getSize(),
+                    ]);
+                }
+                $changes['Attachments'] = 'Added new files';
+            }
+
+            if (!empty($updateData)) {
+                $ticket->update($updateData);
+            }
+
+            DB::commit();
+
+            if (!empty($changes)) {
+                $ticket->refresh();
+                $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails', 'recipientEmails', 'attachments', 'closedByUser']);
+
+                // Send emails after successful commit
+                try {
+                    $mailtrapService = new MailtrapService();
+                    
+                    $uniqueEmails = collect();
+                    
+                    if ($ticket->user && $ticket->user->email) {
+                        $uniqueEmails->push($ticket->user->email);
+                    }
+                    
+                    if ($ticket->assigned_to && $ticket->assignedToUser && $ticket->assignedToUser->email) {
+                        $uniqueEmails->push($ticket->assignedToUser->email);
+                    }
+                    
+                    if ($ticket->recipientEmails && $ticket->recipientEmails->count() > 0) {
+                        foreach ($ticket->recipientEmails as $recipientEmail) {
+                            $uniqueEmails->push($recipientEmail->email_address);
+                        }
+                    }
+                    
+                    if ($ticket->ccEmails && $ticket->ccEmails->count() > 0) {
+                        foreach ($ticket->ccEmails as $ccEmail) {
+                            $uniqueEmails->push($ccEmail->email_address);
+                        }
+                    }
+                    
+                    // Send to unique emails only
+                    if ($wasClosing) {
+                        $uniqueEmails->unique()->each(function ($email) use ($mailtrapService, $ticket) {
+                            $mailtrapService->sendTicketClosed($ticket, $email);
+                        });
+                    } else {
+                        $uniqueEmails->unique()->each(function ($email) use ($mailtrapService, $ticket, $changes) {
+                            $mailtrapService->sendTicketUpdated($ticket, $email, $changes);
+                        });
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send ticket update email: ' . $e->getMessage());
+                }
+            }
+
+            return back()->with('success', 'Ticket updated successfully.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Failed to update ticket: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Failed to update ticket: ' . $e->getMessage()]);
+        }
     }
 
     /**
@@ -486,10 +515,22 @@ class TicketController extends Controller
     public function destroy(Ticket $ticket)
     {
         try {
+            DB::beginTransaction();
+
+            // Delete attachments from storage
+            foreach ($ticket->attachments as $attachment) {
+                Storage::disk('public')->delete($attachment->path);
+            }
+            
+            // Delete ticket (cascades will handle relations)
             $ticket->delete();
+
+            DB::commit();
             
             return redirect()->back()->with('success', 'Ticket deleted successfully');
         } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Failed to delete ticket: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Failed to delete ticket: ' . $e->getMessage());
         }
     }
