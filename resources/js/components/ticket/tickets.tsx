@@ -328,12 +328,29 @@ export default function TicketsTable({
         }
     };
 
-    const handleCloseFromDialog = () => {
-        if (selectedTicket) {
-            setEditMode(selectedTicket.status === 'Closed' ? 'reopen' : 'close');
-            setDialogOpen(false);
-            setEditDialogOpen(true);
+    const handleCloseTicket = (ticketId: number, currentStatus: string) => {
+        const action = currentStatus === 'Closed' ? 'reopen' : 'close';
+        const confirmMessage = currentStatus === 'Closed' 
+            ? 'Are you sure you want to reopen this ticket?' 
+            : 'Are you sure you want to close this ticket?';
+        
+        if (!confirm(confirmMessage)) {
+            return;
         }
+
+        router.patch(`/tickets/${ticketId}/${action}`, {}, {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                toast.success(`Ticket ${action}d successfully!`);
+                setDialogOpen(false);
+                setSelectedTicket(null);
+            },
+            onError: (errors) => {
+                toast.error(`Failed to ${action} ticket`);
+                console.error(errors);
+            }
+        });
     };
 
     const handleDeleteFromDialog = () => {
@@ -934,7 +951,7 @@ export default function TicketsTable({
                                     )}
                                     <Button 
                                         variant={selectedTicket?.status === 'Closed' ? 'default' : 'destructive'}
-                                        onClick={handleCloseFromDialog} 
+                                        onClick={() => handleCloseTicket(selectedTicket?.id || 0, selectedTicket?.status || '')} 
                                         className="text-base px-6 py-2"
                                     >
                                         {selectedTicket?.status === 'Closed' ? (

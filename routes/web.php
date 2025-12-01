@@ -39,8 +39,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     
     Route::resource('tickets', TicketController::class);
-    Route::get('/tickets/{ticket}/attachments/{attachmentId}/download', [TicketController::class, 'downloadAttachment'])->name('tickets.attachment.download');
-    Route::get('/tickets/{ticket}/attachments/{attachmentId}/preview', [TicketController::class, 'previewAttachment'])->name('tickets.attachment.preview');
+    
+    // Separate routes for close and reopen
+    Route::patch('tickets/{ticket}/close', [TicketController::class, 'closeTicket'])->name('tickets.close');
+    Route::patch('tickets/{ticket}/reopen', [TicketController::class, 'reopenTicket'])->name('tickets.reopen');
+    
+    // Attachment routes
+    Route::get('tickets/{ticket}/attachments/{attachmentId}/download', [TicketController::class, 'downloadAttachment'])->name('tickets.attachments.download');
+    Route::get('tickets/{ticket}/attachments/{attachmentId}/preview', [TicketController::class, 'previewAttachment'])->name('tickets.attachments.preview');
+    Route::delete('tickets/{ticket}/attachments/{attachment}', [TicketController::class, 'deleteAttachment'])->name('tickets.attachments.destroy');
     
 
     Route::resource('emails', EmailController::class);
