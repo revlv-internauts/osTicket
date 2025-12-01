@@ -20,7 +20,7 @@ class TicketController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         $allTickets = Ticket::with([
             'user', 
@@ -73,12 +73,35 @@ class TicketController extends Controller
         $emails = Email::select('id', 'email_address', 'name')->get();
         $helpTopics = HelpTopic::select('id', 'name')->get();
 
+        $modalTicket = null;
+        if ($request->has('modal') && $request->query('modal')) {
+            $modalTicket = Ticket::with([
+                'user', 
+                'assignedToUser', 
+                'helpTopicRelation', 
+                'ccEmails',
+                'recipientEmails',
+                'openedByUser',
+                'closedByUser',
+                'attachments',
+                'histories.changedBy'
+            ])->find($request->query('modal'));
+
+            if ($modalTicket && $modalTicket->histories) {
+                $modalTicket->histories = $modalTicket->histories->map(function ($history) {
+                    $history->changed_by_user = $history->changedBy;
+                    return $history;
+                });
+            }
+        }
+
         return Inertia::render('ticket', [
             'tickets'    => $allTickets,
             'myTickets'  => $myTickets,
             'users'      => $users,
             'emails'     => $emails,
             'helpTopics' => $helpTopics,
+            'modalTicket' => $modalTicket,
         ]);
     }
 
@@ -215,7 +238,6 @@ class TicketController extends Controller
 
             $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails', 'recipientEmails', 'attachments']);
 
-            // Send emails after successful commit
             try {
                 $mailtrapService = new MailtrapService();
 
@@ -314,14 +336,13 @@ class TicketController extends Controller
             'ticket' => $ticket,
             'users' => $users,
         ]);
-    }
 
+    }
     /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, Ticket $ticket)
     {
-        // Check authorization first
         if (!$this->canEditTicket($ticket)) {
             abort(403, 'You are not authorized to update this ticket.');
         }
@@ -356,97 +377,44 @@ class TicketController extends Controller
             $changes = [];
             $wasClosing = false;
 
-            if (isset($validated['assigned_to']) && $validated['assigned_to'] != $ticket->assigned_to) {
-                TicketHistory::create([
-                    'ticket_id' => $ticket->id,
-                    'field_name' => 'assigned_to',
-                    'old_value' => $ticket->assigned_to ? User::find($ticket->assigned_to)?->name : 'Unassigned',
-                    'new_value' => $validated['assigned_to'] ? User::find($validated['assigned_to'])?->name : 'Unassigned',
-                    'changed_by' => Auth::id(),
-                ]);
-                
-                $updateData['assigned_to'] = $validated['assigned_to'];
-                $assignedUser = User::find($validated['assigned_to']);
-                $changes['Assigned To'] = $assignedUser ? $assignedUser->name : 'Unassigned';
-            }
-
-            if (isset($validated['priority']) && $validated['priority'] != $ticket->priority) {
-                TicketHistory::create([
-                    'ticket_id' => $ticket->id,
-                    'field_name' => 'priority',
-                    'old_value' => $ticket->priority,
-                    'new_value' => $validated['priority'],
-                    'changed_by' => Auth::id(),
-                ]);
-                
-                $updateData['priority'] = $validated['priority'];
-                $changes['Priority'] = $validated['priority'];
-            }
-
-            if (isset($validated['body']) && $validated['body'] != $ticket->body) {
-                TicketHistory::create([
-                    'ticket_id' => $ticket->id,
-                    'field_name' => 'body',
-                    'old_value' => 'Body',
-                    'new_value' => 'Updated content',
-                    'changed_by' => Auth::id(),
-                ]);
-
-                $updateData['body'] = $validated['body'];
-                $changes['Body'] = 'Updated';
-            }
-
-            if (isset($validated['status']) && $validated['status'] != $ticket->status) {
-                TicketHistory::create([
-                    'ticket_id' => $ticket->id,
-                    'field_name' => 'status',
-                    'old_value' => $ticket->status,
-                    'new_value' => $validated['status'],
-                    'changed_by' => Auth::id(),
-                ]);
-
-                $updateData['status'] = $validated['status'];
-                
-                if ($validated['status'] === 'Closed' && $ticket->status !== 'Closed') {
-                    $updateData['uptime'] = Carbon::now();
-                    $updateData['closed_by'] = Auth::id();
-                    $changes['Status'] = 'Closed';
-                    $wasClosing = true;
-
-                    $closedAt = Carbon::now();
-                    $openedAt = $ticket->downtime 
-                        ? Carbon::parse($ticket->downtime) 
-                        : Carbon::parse($ticket->created_at);
-
-                    if ($closedAt->lessThan($openedAt)) {
-                        $openedAt = Carbon::parse($ticket->created_at);
-                    }
-                    
-                    $updateData['resolution_time'] = (int) round($openedAt->diffInMinutes($closedAt));
+            if (isset($validated['assigned_to'])) {
+                $result = $this->updateAssignedUser($ticket, $validated['assigned_to']);
+                if ($result) {
+                    $updateData['assigned_to'] = $result['data'];
+                    $changes = array_merge($changes, $result['changes']);
                 }
+            }
 
-                if ($validated['status'] === 'Open' && $ticket->status === 'Closed') {
-                    $updateData['uptime'] = null;
-                    $updateData['closed_by'] = null;
-                    $updateData['resolution_time'] = null;
-                    $changes['Status'] = 'Reopened';
+            if (isset($validated['priority'])) {
+                $result = $this->updatePriority($ticket, $validated['priority']);
+                if ($result) {
+                    $updateData['priority'] = $result['data'];
+                    $changes = array_merge($changes, $result['changes']);
+                }
+            }
+
+            if (isset($validated['body'])) {
+                $result = $this->updateBody($ticket, $validated['body']);
+                if ($result) {
+                    $updateData['body'] = $result['data'];
+                    $changes = array_merge($changes, $result['changes']);
+                }
+            }
+
+            if (isset($validated['status'])) {
+                $result = $this->updateStatus($ticket, $validated['status']);
+                if ($result) {
+                    $updateData = array_merge($updateData, $result['data']);
+                    $changes = array_merge($changes, $result['changes']);
+                    $wasClosing = $result['wasClosing'];
                 }
             }
 
             if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $file) {
-                    $fileName = time() . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
-                    $path = $file->storeAs('ticket-attachments', $fileName, 'public');
-                    
-                    $ticket->attachments()->create([
-                        'original_filename' => $file->getClientOriginalName(),
-                        'filename' => $fileName,
-                        'path' => $path,
-                        'mime_type' => $file->getMimeType(),
-                        'size' => $file->getSize(),
-                    ]);
+                $result = $this->addAttachments($ticket, $request->file('images'));
+                if ($result) {
+                    $changes = array_merge($changes, $result['changes']);
                 }
-                $changes['Attachments'] = 'Added new files';
             }
 
             if (!empty($updateData)) {
@@ -456,48 +424,7 @@ class TicketController extends Controller
             DB::commit();
 
             if (!empty($changes)) {
-                $ticket->refresh();
-                $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails', 'recipientEmails', 'attachments', 'closedByUser']);
-
-                // Send emails after successful commit
-                try {
-                    $mailtrapService = new MailtrapService();
-                    
-                    $uniqueEmails = collect();
-                    
-                    if ($ticket->user && $ticket->user->email) {
-                        $uniqueEmails->push($ticket->user->email);
-                    }
-                    
-                    if ($ticket->assigned_to && $ticket->assignedToUser && $ticket->assignedToUser->email) {
-                        $uniqueEmails->push($ticket->assignedToUser->email);
-                    }
-                    
-                    if ($ticket->recipientEmails && $ticket->recipientEmails->count() > 0) {
-                        foreach ($ticket->recipientEmails as $recipientEmail) {
-                            $uniqueEmails->push($recipientEmail->email_address);
-                        }
-                    }
-                    
-                    if ($ticket->ccEmails && $ticket->ccEmails->count() > 0) {
-                        foreach ($ticket->ccEmails as $ccEmail) {
-                            $uniqueEmails->push($ccEmail->email_address);
-                        }
-                    }
-                    
-                    // Send to unique emails only
-                    if ($wasClosing) {
-                        $uniqueEmails->unique()->each(function ($email) use ($mailtrapService, $ticket) {
-                            $mailtrapService->sendTicketClosed($ticket, $email);
-                        });
-                    } else {
-                        $uniqueEmails->unique()->each(function ($email) use ($mailtrapService, $ticket, $changes) {
-                            $mailtrapService->sendTicketUpdated($ticket, $email, $changes);
-                        });
-                    }
-                } catch (\Exception $e) {
-                    \Log::error('Failed to send ticket update email: ' . $e->getMessage());
-                }
+                $this->sendUpdateNotifications($ticket, $changes, $wasClosing);
             }
 
             return back()->with('success', 'Ticket updated successfully.');
@@ -510,6 +437,207 @@ class TicketController extends Controller
     }
 
     /**
+     * Update the assigned user for a ticket.
+     */
+    private function updateAssignedUser(Ticket $ticket, $assignedToId)
+    {
+        if ($assignedToId == $ticket->assigned_to) {
+            return null;
+        }
+
+        TicketHistory::create([
+            'ticket_id' => $ticket->id,
+            'field_name' => 'assigned_to',
+            'old_value' => $ticket->assigned_to ? User::find($ticket->assigned_to)?->name : 'Unassigned',
+            'new_value' => $assignedToId ? User::find($assignedToId)?->name : 'Unassigned',
+            'changed_by' => Auth::id(),
+        ]);
+
+        $assignedUser = User::find($assignedToId);
+
+        return [
+            'data' => $assignedToId,
+            'changes' => ['Assigned To' => $assignedUser ? $assignedUser->name : 'Unassigned']
+        ];
+    }
+
+    /**
+     * Update the priority of a ticket.
+     */
+    private function updatePriority(Ticket $ticket, $priority)
+    {
+        if ($priority == $ticket->priority) {
+            return null;
+        }
+
+        TicketHistory::create([
+            'ticket_id' => $ticket->id,
+            'field_name' => 'priority',
+            'old_value' => $ticket->priority,
+            'new_value' => $priority,
+            'changed_by' => Auth::id(),
+        ]);
+
+        return [
+            'data' => $priority,
+            'changes' => ['Priority' => $priority]
+        ];
+    }
+
+    /**
+     * Update the body of a ticket.
+     */
+    private function updateBody(Ticket $ticket, $body)
+    {
+        if ($body == $ticket->body) {
+            return null;
+        }
+
+        TicketHistory::create([
+            'ticket_id' => $ticket->id,
+            'field_name' => 'body',
+            'old_value' => 'Body',
+            'new_value' => 'Updated content',
+            'changed_by' => Auth::id(),
+        ]);
+
+        return [
+            'data' => $body,
+            'changes' => ['Body' => 'Updated']
+        ];
+    }
+
+    /**
+     * Update the status of a ticket.
+     */
+    private function updateStatus(Ticket $ticket, $status)
+    {
+        if ($status == $ticket->status) {
+            return null;
+        }
+
+        TicketHistory::create([
+            'ticket_id' => $ticket->id,
+            'field_name' => 'status',
+            'old_value' => $ticket->status,
+            'new_value' => $status,
+            'changed_by' => Auth::id(),
+        ]);
+
+        $updateData = ['status' => $status];
+        $changes = [];
+        $wasClosing = false;
+
+        // Closing ticket
+        if ($status === 'Closed' && $ticket->status !== 'Closed') {
+            $updateData['uptime'] = Carbon::now();
+            $updateData['closed_by'] = Auth::id();
+            $changes['Status'] = 'Closed';
+            $wasClosing = true;
+
+            $closedAt = Carbon::now();
+            $openedAt = $ticket->downtime 
+                ? Carbon::parse($ticket->downtime) 
+                : Carbon::parse($ticket->created_at);
+
+            if ($closedAt->lessThan($openedAt)) {
+                $openedAt = Carbon::parse($ticket->created_at);
+            }
+            
+            $updateData['resolution_time'] = (int) round($openedAt->diffInMinutes($closedAt));
+        }
+
+        // Reopening ticket
+        if ($status === 'Open' && $ticket->status === 'Closed') {
+            $updateData['uptime'] = null;
+            $updateData['closed_by'] = null;
+            $updateData['resolution_time'] = null;
+            $changes['Status'] = 'Reopened';
+        }
+
+        return [
+            'data' => $updateData,
+            'changes' => $changes,
+            'wasClosing' => $wasClosing
+        ];
+    }
+
+    /**
+     * Add attachments to a ticket.
+     */
+    private function addAttachments(Ticket $ticket, array $files)
+    {
+        foreach ($files as $file) {
+            $fileName = time() . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('ticket-attachments', $fileName, 'public');
+            
+            $ticket->attachments()->create([
+                'original_filename' => $file->getClientOriginalName(),
+                'filename' => $fileName,
+                'path' => $path,
+                'mime_type' => $file->getMimeType(),
+                'size' => $file->getSize(),
+            ]);
+        }
+
+        return [
+            'changes' => ['Attachments' => 'Added new files']
+        ];
+    }
+
+    /**
+     * Send update notification emails to all relevant parties.
+     */
+    private function sendUpdateNotifications(Ticket $ticket, array $changes, bool $wasClosing)
+    {
+        $ticket->refresh();
+        $ticket->load(['user', 'assignedToUser', 'helpTopicRelation', 'ccEmails', 'recipientEmails', 'attachments', 'closedByUser']);
+
+        try {
+            $mailtrapService = new MailtrapService();
+            
+            $uniqueEmails = collect();
+            
+            // Collect creator email
+            if ($ticket->user && $ticket->user->email) {
+                $uniqueEmails->push($ticket->user->email);
+            }
+            
+            // Collect assigned user email
+            if ($ticket->assigned_to && $ticket->assignedToUser && $ticket->assignedToUser->email) {
+                $uniqueEmails->push($ticket->assignedToUser->email);
+            }
+            
+            // Collect recipient emails
+            if ($ticket->recipientEmails && $ticket->recipientEmails->count() > 0) {
+                foreach ($ticket->recipientEmails as $recipientEmail) {
+                    $uniqueEmails->push($recipientEmail->email_address);
+                }
+            }
+            
+            // Collect CC emails
+            if ($ticket->ccEmails && $ticket->ccEmails->count() > 0) {
+                foreach ($ticket->ccEmails as $ccEmail) {
+                    $uniqueEmails->push($ccEmail->email_address);
+                }
+            }
+            
+            // Send to unique emails only
+            if ($wasClosing) {
+                $uniqueEmails->unique()->each(function ($email) use ($mailtrapService, $ticket) {
+                    $mailtrapService->sendTicketClosed($ticket, $email);
+                });
+            } else {
+                $uniqueEmails->unique()->each(function ($email) use ($mailtrapService, $ticket, $changes) {
+                    $mailtrapService->sendTicketUpdated($ticket, $email, $changes);
+                });
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to send ticket update email: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy(Ticket $ticket)
@@ -517,12 +645,10 @@ class TicketController extends Controller
         try {
             DB::beginTransaction();
 
-            // Delete attachments from storage
             foreach ($ticket->attachments as $attachment) {
                 Storage::disk('public')->delete($attachment->path);
             }
             
-            // Delete ticket (cascades will handle relations)
             $ticket->delete();
 
             DB::commit();

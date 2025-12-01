@@ -240,6 +240,24 @@ class TicketTest extends TestCase
 
     }
 
+    public function test_other_user_cant_update(): void
+    {        
+        [$user, $otherUser, $helpTopic] = $this->bootstrapTicket();
+        
+        $ticket = Ticket::factory()->create([
+            'user_id' => $user->id,
+            'help_topic' => $helpTopic->id,
+            'assigned_to' => $user->id,
+            'opened_by' => $user->id,
+        ]);
+        
+        $response = $this->actingAs($otherUser)->put(route('tickets.update', $ticket), [
+            'body' => 'Updated by other user',
+        ]);
+        
+        $response->assertStatus(403);
+    }
+
     public function test_can_reassign_ticket(): void
     {        
         [$user, , $helpTopic,] = $this->bootstrapTicket();

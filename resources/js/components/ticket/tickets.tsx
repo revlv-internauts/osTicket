@@ -172,6 +172,7 @@ export default function TicketsTable({
     const pageProps = usePage().props as any;
     const tickets = propTickets ?? (pageProps.tickets ?? []);
     const currentUserId = pageProps.auth?.user?.id ?? null;
+    const modalTicketFromUrl = pageProps.modalTicket ?? null;
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -192,6 +193,13 @@ export default function TicketsTable({
             toast.success(String(success));
         }
     }, [pageProps?.flash?.success, pageProps?.flash?.message]);
+
+    useEffect(() => {
+        if (modalTicketFromUrl) {
+            setSelectedTicket(modalTicketFromUrl);
+            setDialogOpen(true);
+        }
+    }, [modalTicketFromUrl]);
 
     const sortedTickets = [...tickets].sort((a, b) => {
         if (!sortField || !sortDirection) return 0;
@@ -288,13 +296,28 @@ export default function TicketsTable({
         if ((event.target as HTMLElement).closest('button')) {
             return;
         }
-        setSelectedTicket(ticket);
-        setDialogOpen(true);
+        router.visit(`/tickets?modal=${ticket.id}`, {
+            preserveScroll: true,
+            only: ['modalTicket']
+        });
     };
 
     const handleCloseDialog = () => {
         setDialogOpen(false);
         setSelectedTicket(null);
+        router.visit('/tickets', {
+            preserveScroll: true,
+            only: ['modalTicket'],
+            replace: true
+        });
+    };
+
+    const handleDialogOpenChange = (open: boolean) => {
+        if (!open) {
+            handleCloseDialog();
+        } else {
+            setDialogOpen(open);
+        }
     };
 
     const handleUpdateFromDialog = () => {
@@ -350,12 +373,26 @@ export default function TicketsTable({
         setEditDialogOpen(false);
         setSelectedTicket(null);
         setEditMode(null);
-        router.reload({ only: ['tickets'] });
+        router.visit('/tickets', {
+            preserveScroll: true,
+            only: ['tickets', 'myTickets', 'modalTicket'],
+            replace: true
+        });
     };
 
     const handleCloseEditDialog = () => {
         setEditDialogOpen(false);
         setEditMode(null);
+
+        const currentUrl = new URL(window.location.href);
+        if (currentUrl.searchParams.has('modal')) {
+            currentUrl.searchParams.delete('modal');
+            router.visit(currentUrl.pathname + currentUrl.search, {
+                preserveScroll: true,
+                only: ['modalTicket'],
+                replace: true
+            });
+        }
     };
 
     const editor = useEditor({
@@ -566,7 +603,7 @@ export default function TicketsTable({
             </AlertDialog>
 
             {/* Ticket Details Dialog */}
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
                 <DialogContent className="w-[95vw] max-w-[1400px] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-3xl font-bold">Ticket Details</DialogTitle>
